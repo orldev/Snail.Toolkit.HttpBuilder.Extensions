@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net10.0</TargetFrameworks>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <PackageId>Snail.Toolkit.HttpBuilder.Extensions</PackageId>
+        <Title>Snail.Toolkit.HttpBuilder.Extensions</Title>
+        <Authors>Toolkit</Authors>
+        <Description>Fluent, typed request builder over HttpClient: chainable configuration, independent per-call state, failure bodies preserved in HttpBuilderException, and streaming terminals for NDJSON and JSON-array responses.</Description>
+        <PackageTags>HttpClient;http;fluent;rest;api-client;streaming;ndjson</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <Copyright>Toolkit, 2023–2026</Copyright>
+        <PackageProjectUrl>https://github.com/orldev/Snail.Toolkit.HttpBuilder.Extensions</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/orldev/Snail.Toolkit.HttpBuilder.Extensions</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+    </PropertyGroup>
+    
+    <PropertyGroup>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+
+</Project>

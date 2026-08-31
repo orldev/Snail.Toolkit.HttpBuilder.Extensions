@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Snail.Toolkit.HttpBuilder.Extensions", "src\Snail.Toolkit.HttpBuilder.Extensions.csproj", "{1EF3BE88-11C4-437C-A489-7815C3AAE13E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Snail.Toolkit.HttpBuilder.Extensions.Tests", "tests\Snail.Toolkit.HttpBuilder.Extensions.Tests.csproj", "{4C43360F-C760-40DB-8176-79B3829CE645}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1EF3BE88-11C4-437C-A489-7815C3AAE13E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1EF3BE88-11C4-437C-A489-7815C3AAE13E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1EF3BE88-11C4-437C-A489-7815C3AAE13E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1EF3BE88-11C4-437C-A489-7815C3AAE13E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4C43360F-C760-40DB-8176-79B3829CE645}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C43360F-C760-40DB-8176-79B3829CE645}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C43360F-C760-40DB-8176-79B3829CE645}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C43360F-C760-40DB-8176-79B3829CE645}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
