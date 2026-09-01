@@ -217,7 +217,7 @@ public class HttpRequestBuilderTests
             handler.Single.Content?.Headers.ContentType?.MediaType);
     }
 
-    private sealed class ContentTypeClient(HttpClient client) : HttpBuilder(client)
+    private sealed class ContentTypeClient(HttpClient client) : TypedHttpClientBase(client)
     {
         public Task<Response?> Send() =>
             Post("thing")

@@ -1,14 +1,14 @@
-## HttpBuilder
+## Snail.Toolkit.HttpBuilder.Extensions
 
-Extension for the framework `HttpClient`. Derive a typed client from `HttpBuilder`,
-start a request with a verb, configure it fluently, send it.
+Extension for the framework `HttpClient`. Derive a typed client from
+`TypedHttpClientBase`, start a request with a verb, configure it fluently, send it.
 
 ```csharp
 public class Request;
 
 public class Response;
 
-public class SampleExample(HttpClient client) : HttpBuilder(client)
+public class SampleExample(HttpClient client) : TypedHttpClientBase(client)
 {
     public Task<Response?> Run(Request request, CancellationToken ct = default) =>
         Post("v1/oauth2/token")
@@ -78,7 +78,7 @@ yielded while the server is still generating the rest — which is what an LLM-s
 endpoint needs:
 
 ```csharp
-public class ChatClient(HttpClient client) : HttpBuilder(client)
+public class ChatClient(HttpClient client) : TypedHttpClientBase(client)
 {
     // Ollama-style NDJSON: {"done":false,...}\n{"done":false,...}\n{"done":true,...}
     public IAsyncEnumerable<ChatChunk> StreamAsync(ChatRequest request, CancellationToken ct = default) =>

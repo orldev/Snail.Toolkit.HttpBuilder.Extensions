@@ -14,7 +14,7 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// </remarks>
 /// <example>
 /// <code>
-/// public sealed class PaymentsClient(HttpClient client) : HttpBuilder(client)
+/// public sealed class PaymentsClient(HttpClient client) : TypedHttpClientBase(client)
 /// {
 ///     public Task&lt;Token?&gt; ExchangeAsync(Grant grant, CancellationToken ct = default) =&gt;
 ///         Post("v1/oauth2/token")
@@ -24,7 +24,7 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// }
 /// </code>
 /// </example>
-public abstract class HttpBuilder(HttpClient client)
+public abstract class TypedHttpClientBase(HttpClient client)
 {
     /// <summary>Starts a <c>GET</c> request.</summary>
     protected IHttpRequestBuilder Get(string path) => Request(HttpMethod.Get, path);

@@ -6,7 +6,7 @@ namespace Snail.Toolkit.HttpBuilder.Extensions.Tests.HttpEndpoints;
 /// A client shaped like a real one, used to exercise the builder through the same
 /// surface a consumer sees.
 /// </summary>
-public class SampleExample(HttpClient client) : HttpBuilder(client)
+public class SampleExample(HttpClient client) : TypedHttpClientBase(client)
 {
     /// <summary>Sends a body, headers and an explicit version, and reads a typed response.</summary>
     public Task<Response?> Run(

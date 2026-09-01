@@ -8,7 +8,7 @@ using Snail.Toolkit.HttpBuilder.Extensions.Tests.HttpEndpoints;
 
 namespace Snail.Toolkit.HttpBuilder.Extensions.Tests;
 
-public class HttpBuilderTests
+public class TypedHttpClientBaseTests
 {
     [Theory]
     [InlineData("GET")]
