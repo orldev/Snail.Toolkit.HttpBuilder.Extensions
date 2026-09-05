@@ -57,6 +57,11 @@ await Get("v1/things/1").SendAsync<Thing>(ct);   // no body, no X-Trace
 | `SendAsStringAsync(ct)` | the body as text |
 | `SendAsNdjsonAsync<T>(ct)` | streams newline-delimited JSON, one `T` per line as it arrives |
 | `SendAsJsonStreamAsync<T>(ct)` | streams the elements of a JSON array as they arrive |
+| `SendAsSseAsync<T>(ct)` | streams the `data` payloads of server-sent events as they arrive |
+
+A builder is **single-use**: sending disposes the request content, so a second send on
+the same instance throws `InvalidOperationException`. Start the next call from a verb
+on the client.
 
 The typed overloads throw `HttpBuilderException` on a failure status. It carries
 the method, URI, status and — the useful part — the **response body**, which is where
@@ -73,7 +78,7 @@ It derives from `HttpRequestException`, so existing handlers still catch it.
 
 #### Streaming
 
-Both streaming terminals send with `ResponseHeadersRead`, so the first chunk is
+All streaming terminals send with `ResponseHeadersRead`, so the first chunk is
 yielded while the server is still generating the rest — which is what an LLM-style
 endpoint needs:
 
@@ -94,10 +99,26 @@ await foreach (var chunk in chat.StreamAsync(request, ct))
 
 `SendAsNdjsonAsync<T>` reads line-delimited JSON, skipping blank lines and JSON
 `null`s. `SendAsJsonStreamAsync<T>` reads the elements of one JSON array
-(`[{...},{...},...]`) without waiting for the closing bracket. Both honour
-`WithJsonOptions` and default to web-style (camelCase, case-insensitive) options,
-the same as `SendAsync<T>`, and both throw `HttpBuilderException` with the response
-body on a failure status.
+(`[{...},{...},...]`) without waiting for the closing bracket. `SendAsSseAsync<T>`
+reads a `text/event-stream` response, yielding the `data` payload of each event:
+comment lines and other fields are skipped, multi-line data is joined with newlines,
+and an OpenAI-style `data: [DONE]` sentinel ends the stream:
+
+```csharp
+public class ChatClient(HttpClient client) : TypedHttpClientBase(client)
+{
+    // OpenAI-style SSE: data: {...}\n\n data: {...}\n\n data: [DONE]
+    public IAsyncEnumerable<ChatChunk> StreamAsync(ChatRequest request, CancellationToken ct = default) =>
+        Post("v1/chat/completions")
+            .AsJson(request)
+            .Accept("text/event-stream")
+            .SendAsSseAsync<ChatChunk>(ct);
+}
+```
+
+All of them honour `WithJsonOptions` and default to web-style (camelCase,
+case-insensitive) options, the same as `SendAsync<T>`, and all throw
+`HttpBuilderException` with the response body on a failure status.
 
 #### Paths
 
@@ -114,13 +135,13 @@ address carries:
 Google-style paths containing a colon (`v1/places:autocomplete`) are handled — the
 segment before the colon is not mistaken for a URI scheme.
 
-#### Using Helpers
+#### Enum wire names
 
-`JsonStringEnumConverterExtension` maps enum members to the strings an API expects,
+`EnumMemberJsonConverter` maps enum members to the strings an API expects,
 which the built-in converter cannot do because it ignores `EnumMember`.
 
 ```csharp
-[JsonConverter(typeof(JsonStringEnumConverterExtension<PaymentType>))]
+[JsonConverter(typeof(EnumMemberJsonConverter<PaymentType>))]
 public enum PaymentType
 {
     [EnumMember(Value = "ONE_TIME")]

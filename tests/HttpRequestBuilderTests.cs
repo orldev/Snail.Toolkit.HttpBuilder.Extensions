@@ -201,6 +201,37 @@ public class HttpRequestBuilderTests
     }
 
     /// <summary>
+    /// The send disposes the request content, so a second send on the same builder would
+    /// reuse what is gone; it fails loudly instead.
+    /// </summary>
+    [Fact]
+    public async Task SecondSendOnTheSameBuilder_Throws()
+    {
+        var handler = new RecordingHandler();
+        var client = new HttpClient(handler) { BaseAddress = new Uri("https://www.example.com") };
+        var builder = new HttpRequestBuilder(client, HttpMethod.Get, "thing");
+
+        using var response = await builder.SendAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => builder.SendAsync());
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task SecondEnumerationOfAStream_Throws()
+    {
+        var handler = new RecordingHandler(Canned.Text("""{"field":"one"}""", HttpStatusCode.OK));
+        var client = new HttpClient(handler) { BaseAddress = new Uri("https://www.example.com") };
+        var stream = new HttpRequestBuilder(client, HttpMethod.Get, "thing")
+            .SendAsNdjsonAsync<Response>();
+
+        await stream.ToListAsync();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => stream.ToListAsync().AsTask());
+        Assert.Single(handler.Requests);
+    }
+
+    /// <summary>
     /// Content headers are rejected by the request header collection, so they are
     /// routed to the body rather than throwing.
     /// </summary>

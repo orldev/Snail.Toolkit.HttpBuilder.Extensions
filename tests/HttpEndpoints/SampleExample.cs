@@ -50,6 +50,14 @@ public class SampleExample(HttpClient client) : TypedHttpClientBase(client)
         string path, CancellationToken cancellationToken = default) =>
         base.Get(path).SendAsJsonStreamAsync<Response>(cancellationToken);
 
+    /// <summary>Streams server-sent events, as an LLM-style endpoint sends them.</summary>
+    public IAsyncEnumerable<Response> StreamSse(
+        string path, Request request, CancellationToken cancellationToken = default) =>
+        base.Post(path)
+            .AsJson(request)
+            .Accept("text/event-stream")
+            .SendAsSseAsync<Response>(cancellationToken);
+
     /// <summary>Posts a body, so a following call can be checked for not inheriting it.</summary>
     public Task<Response?> Post(
         string path, Request request, string header, CancellationToken cancellationToken = default) =>

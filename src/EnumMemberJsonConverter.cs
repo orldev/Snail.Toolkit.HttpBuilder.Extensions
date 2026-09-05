@@ -2,7 +2,7 @@ using System.Runtime.Serialization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Snail.Toolkit.HttpBuilder.Extensions.Helpers;
+namespace Snail.Toolkit.HttpBuilder.Extensions;
 
 /// <summary>
 /// Converts an enum to and from the string an API expects, honouring
@@ -16,7 +16,7 @@ namespace Snail.Toolkit.HttpBuilder.Extensions.Helpers;
 /// </remarks>
 /// <example>
 /// <code>
-/// [JsonConverter(typeof(JsonStringEnumConverterExtension&lt;PaymentType&gt;))]
+/// [JsonConverter(typeof(EnumMemberJsonConverter&lt;PaymentType&gt;))]
 /// public enum PaymentType
 /// {
 ///     [EnumMember(Value = "ONE_TIME")] OneTime,
@@ -24,13 +24,18 @@ namespace Snail.Toolkit.HttpBuilder.Extensions.Helpers;
 /// }
 /// </code>
 /// </example>
-public class JsonStringEnumConverterExtension<TEnum> : JsonConverter<TEnum> where TEnum : struct, Enum
+public sealed class EnumMemberJsonConverter<TEnum> : JsonConverter<TEnum> where TEnum : struct, Enum
 {
     private readonly Dictionary<TEnum, string> _enumToString = new();
     private readonly Dictionary<string, TEnum> _stringToEnum = new();
 
     /// <summary>Builds the name maps from the enum's members.</summary>
-    public JsonStringEnumConverterExtension()
+    /// <remarks>
+    /// Maps are filled with <c>TryAdd</c>: an <see cref="EnumMemberAttribute"/> value may
+    /// collide with another member's name, and a duplicate must not break every request
+    /// that uses the type. The first mapping registered wins.
+    /// </remarks>
+    public EnumMemberJsonConverter()
     {
         var type = typeof(TEnum);
 
@@ -42,8 +47,6 @@ public class JsonStringEnumConverterExtension<TEnum> : JsonConverter<TEnum> wher
                 .Cast<EnumMemberAttribute>()
                 .FirstOrDefault();
 
-            // TryAdd: an EnumMember value may collide with another member's name, and a
-            // duplicate must not break every request that uses the type.
             _stringToEnum.TryAdd(name, value);
 
             if (attribute?.Value is not null)
@@ -71,10 +74,12 @@ public class JsonStringEnumConverterExtension<TEnum> : JsonConverter<TEnum> wher
     }
 
     /// <summary>Writes an enum as the string the API expects.</summary>
+    /// <remarks>
+    /// A cast integer or combined flags has no mapping; its own representation beats a
+    /// <see cref="KeyNotFoundException"/> mid-serialize.
+    /// </remarks>
     public override void Write(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options)
     {
-        // A cast integer or combined flags has no mapping; its own representation beats
-        // a KeyNotFoundException mid-serialize.
         writer.WriteStringValue(
             _enumToString.TryGetValue(value, out var name) ? name : value.ToString());
     }

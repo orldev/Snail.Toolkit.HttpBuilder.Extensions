@@ -78,6 +78,74 @@ public class HttpStreamingTests
     }
 
     [Fact]
+    public async Task Sse_YieldsTheDataOfEachEventInOrder()
+    {
+        var (client, _) = Arrange(Canned.Text(
+            """
+            : keep-alive
+
+            event: message
+            data: {"field":"one"}
+
+            data: {"field":
+            data: "two"}
+
+            """,
+            HttpStatusCode.OK));
+
+        var chunks = await client.StreamSse("api/chat", new Request()).ToListAsync();
+
+        Assert.Equal(["one", "two"], chunks.Select(c => c.Field));
+    }
+
+    [Fact]
+    public async Task Sse_DoneSentinelEndsTheStream()
+    {
+        var (client, _) = Arrange(Canned.Text(
+            """
+            data: {"field":"one"}
+
+            data: [DONE]
+
+            data: {"field":"never"}
+
+            """,
+            HttpStatusCode.OK));
+
+        var chunks = await client.StreamSse("api/chat", new Request()).ToListAsync();
+
+        Assert.Equal(["one"], chunks.Select(c => c.Field));
+    }
+
+    [Fact]
+    public async Task Sse_LastEventNeedsNoTrailingSeparator()
+    {
+        var (client, _) = Arrange(Canned.Text(
+            """
+            data: {"field":"one"}
+
+            data: {"field":"two"}
+            """,
+            HttpStatusCode.OK));
+
+        var chunks = await client.StreamSse("api/chat", new Request()).ToListAsync();
+
+        Assert.Equal(["one", "two"], chunks.Select(c => c.Field));
+    }
+
+    [Fact]
+    public async Task Sse_FailureThrowsWithBody()
+    {
+        var (client, _) = Arrange(Canned.Text("quota exceeded", HttpStatusCode.TooManyRequests));
+
+        var exception = await Assert.ThrowsAsync<HttpBuilderException>(() =>
+            client.StreamSse("api/chat", new Request()).ToListAsync().AsTask());
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, exception.StatusCode);
+        Assert.Contains("quota exceeded", exception.Body);
+    }
+
+    [Fact]
     public async Task Ndjson_SecondCallInheritsNothingFromTheFirst()
     {
         var (client, handler) = Arrange(

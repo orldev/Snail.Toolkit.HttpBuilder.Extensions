@@ -7,6 +7,11 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// One HTTP request under construction. Configuration methods return the same instance so
 /// calls chain; the <c>SendAsync</c> members are the terminal operations.
 /// </summary>
+/// <remarks>
+/// A builder is single-use: the send disposes the request content, so a second send on
+/// the same instance throws <see cref="InvalidOperationException"/> rather than reusing
+/// what is gone. Start the next call from a verb on the client.
+/// </remarks>
 public interface IHttpRequestBuilder
 {
     /// <summary>Sends the value as a JSON body. The options are reused to read the response.</summary>
@@ -78,4 +83,14 @@ public interface IHttpRequestBuilder
     /// </summary>
     /// <exception cref="HttpBuilderException">The status was not a success.</exception>
     IAsyncEnumerable<TValue> SendAsJsonStreamAsync<TValue>(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends the request and streams a successful <c>text/event-stream</c> response,
+    /// yielding the <c>data</c> payload of each server-sent event as it arrives.
+    /// Comment lines and other fields are skipped, multi-line data is joined with
+    /// newlines, JSON <c>null</c>s are skipped, and an OpenAI-style <c>[DONE]</c>
+    /// sentinel ends the stream.
+    /// </summary>
+    /// <exception cref="HttpBuilderException">The status was not a success.</exception>
+    IAsyncEnumerable<TValue> SendAsSseAsync<TValue>(CancellationToken cancellationToken = default);
 }
