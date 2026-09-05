@@ -59,6 +59,22 @@ public class EnumMemberJsonConverterTests
         Assert.Equal(default, JsonSerializer.Deserialize<Payment>("\"CRYPTO\""));
 
     [Fact]
+    public void Read_IgnoresCase() =>
+        Assert.Equal(Payment.Recurring, JsonSerializer.Deserialize<Payment>("\"recurring\""));
+
+    /// <summary>
+    /// An API switching its serializer to numbers must degrade like an unknown string,
+    /// not explode mid-deserialize.
+    /// </summary>
+    [Fact]
+    public void Read_AcceptsADefinedNumber() =>
+        Assert.Equal(Payment.Recurring, JsonSerializer.Deserialize<Payment>("1"));
+
+    [Fact]
+    public void Read_UnknownNumberBecomesDefault() =>
+        Assert.Equal(default, JsonSerializer.Deserialize<Payment>("42"));
+
+    [Fact]
     public void Read_EveryLabelledMemberRoundTrips()
     {
         foreach (var value in Enum.GetValues<Payment>())

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.Contracts;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.Extensions;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.HttpEndpoints;
@@ -201,6 +202,105 @@ public class HttpRequestBuilderTests
     }
 
     /// <summary>
+    /// The options must apply to the body no matter which order they and the body were
+    /// given in, because the body is serialized at send time, not at configuration time.
+    /// </summary>
+    [Fact]
+    public async Task JsonOptionsSetBeforeTheBody_ApplyToTheBody()
+    {
+        var handler = new RecordingHandler();
+        var client = new HttpClient(handler) { BaseAddress = new Uri("https://www.example.com") };
+        var pascalCase = new JsonSerializerOptions();
+
+        using var response = await new HttpRequestBuilder(client, HttpMethod.Post, "thing")
+            .WithJsonOptions(pascalCase)
+            .AsJson(new Plain { Field = "value" })
+            .SendAsync();
+
+        Assert.Contains("\"Field\"", handler.Bodies[0]);
+    }
+
+    [Fact]
+    public async Task JsonOptionsGivenWithTheBody_ApplyToTheBody()
+    {
+        var handler = new RecordingHandler();
+        var client = new HttpClient(handler) { BaseAddress = new Uri("https://www.example.com") };
+        var pascalCase = new JsonSerializerOptions();
+
+        using var response = await new HttpRequestBuilder(client, HttpMethod.Post, "thing")
+            .AsJson(new Plain { Field = "value" }, pascalCase)
+            .SendAsync();
+
+        Assert.Contains("\"Field\"", handler.Bodies[0]);
+    }
+
+    [Fact]
+    public async Task JsonBody_DefaultsToWebOptions()
+    {
+        var handler = new RecordingHandler();
+        var client = new HttpClient(handler) { BaseAddress = new Uri("https://www.example.com") };
+
+        using var response = await new HttpRequestBuilder(client, HttpMethod.Post, "thing")
+            .AsJson(new Plain { Field = "value" })
+            .SendAsync();
+
+        Assert.Contains("\"field\"", handler.Bodies[0]);
+    }
+
+    /// <summary>
+    /// A typed client configured for HTTP/2 in AddHttpClient used to be silently
+    /// downgraded, because the builder stamped a hardcoded 1.1 onto every message.
+    /// </summary>
+    [Fact]
+    public async Task Version_DefaultsToTheClientConfiguration()
+    {
+        var handler = new RecordingHandler();
+        var client = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://www.example.com"),
+            DefaultRequestVersion = HttpVersion.Version20,
+            DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact
+        };
+
+        using var response = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsync();
+
+        Assert.Equal(HttpVersion.Version20, handler.Single.Version);
+        Assert.Equal(HttpVersionPolicy.RequestVersionExact, handler.Single.VersionPolicy);
+    }
+
+    /// <summary>
+    /// The failure body is read capped at the stream, so an oversized error response
+    /// cannot exhaust memory; the exception carries the first 4096 characters and an
+    /// ellipsis.
+    /// </summary>
+    [Fact]
+    public async Task OversizedErrorBody_IsCappedInTheException()
+    {
+        var (client, _) = Arrange(
+            "https://www.example.com",
+            Canned.Text(new string('x', 10_000), HttpStatusCode.BadRequest));
+
+        var exception = await Assert.ThrowsAsync<HttpBuilderException>(() => client.Get("thing"));
+
+        Assert.NotNull(exception.Body);
+        Assert.Equal(4097, exception.Body!.Length);
+        Assert.EndsWith("…", exception.Body);
+    }
+
+    /// <summary>
+    /// A chunked response has no Content-Length, so emptiness is judged by the bytes
+    /// actually received rather than by the header.
+    /// </summary>
+    [Fact]
+    public async Task EmptyChunkedBody_ReadsAsDefault()
+    {
+        var handler = new UnsizedEmptyHandler();
+        var client = new HttpClient(handler) { BaseAddress = new Uri("https://www.example.com") };
+
+        Assert.Null(await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsync<Response>());
+    }
+
+    /// <summary>
     /// The send disposes the request content, so a second send on the same builder would
     /// reuse what is gone; it fails loudly instead.
     /// </summary>
@@ -255,5 +355,33 @@ public class HttpRequestBuilderTests
                 .AsJson(new Request { Field = "x" })
                 .Header("Content-Type", "application/vnd.api+json")
                 .SendAsync<Response>();
+    }
+
+    private sealed class Plain
+    {
+        public string? Field { get; set; }
+    }
+
+    private sealed class UnsizedEmptyHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new UnsizedEmptyContent()
+            });
+    }
+
+    private sealed class UnsizedEmptyContent : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context) =>
+            Task.CompletedTask;
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+
+            return false;
+        }
     }
 }

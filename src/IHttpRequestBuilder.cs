@@ -5,16 +5,35 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 
 /// <summary>
 /// One HTTP request under construction. Configuration methods return the same instance so
-/// calls chain; the <c>SendAsync</c> members are the terminal operations.
+/// calls chain; the send members are the terminal operations.
 /// </summary>
 /// <remarks>
+/// <para>
+/// This interface is frozen: it carries configuration and the raw and checked sends.
+/// Response formats — JSON, NDJSON, JSON array, SSE — live in
+/// <see cref="HttpRequestTerminals"/> as extension methods over the checked send, so a
+/// new format never breaks an implementor of this contract.
+/// </para>
+/// <para>
 /// A builder is single-use: the send disposes the request content, so a second send on
 /// the same instance throws <see cref="InvalidOperationException"/> rather than reusing
 /// what is gone. Start the next call from a verb on the client.
+/// </para>
 /// </remarks>
 public interface IHttpRequestBuilder
 {
-    /// <summary>Sends the value as a JSON body. The options are reused to read the response.</summary>
+    /// <summary>
+    /// The serializer options the JSON body is written with and the response is read
+    /// with. Web-style until <see cref="AsJson{TValue}"/> or
+    /// <see cref="WithJsonOptions"/> sets them; the options given last win.
+    /// </summary>
+    JsonSerializerOptions JsonOptions { get; }
+
+    /// <summary>
+    /// Sends the value as a JSON body, serialized at send time with
+    /// <see cref="JsonOptions"/>. Options given here become the builder's options for
+    /// both writing the body and reading the response.
+    /// </summary>
     IHttpRequestBuilder AsJson<TValue>(TValue value, JsonSerializerOptions? options = null);
 
     /// <summary>Sends a string body. Defaults to UTF-8 and <c>text/plain</c>.</summary>
@@ -44,13 +63,19 @@ public interface IHttpRequestBuilder
     /// <summary>Appends several query parameters, skipping null values.</summary>
     IHttpRequestBuilder Query(IEnumerable<KeyValuePair<string, string?>> parameters);
 
-    /// <summary>Sets the HTTP version.</summary>
+    /// <summary>
+    /// Sets the HTTP version. Unset, the client's
+    /// <see cref="HttpClient.DefaultRequestVersion"/> applies.
+    /// </summary>
     IHttpRequestBuilder WithVersion(Version version);
 
-    /// <summary>Sets how strictly the HTTP version is applied.</summary>
+    /// <summary>
+    /// Sets how strictly the HTTP version is applied. Unset, the client's
+    /// <see cref="HttpClient.DefaultVersionPolicy"/> applies.
+    /// </summary>
     IHttpRequestBuilder WithVersionPolicy(HttpVersionPolicy policy);
 
-    /// <summary>Sets the serializer options used to read the response.</summary>
+    /// <summary>Sets <see cref="JsonOptions"/> for both the body and the response.</summary>
     IHttpRequestBuilder WithJsonOptions(JsonSerializerOptions? options);
 
     /// <summary>
@@ -59,38 +84,23 @@ public interface IHttpRequestBuilder
     /// </summary>
     Task<HttpResponseMessage> SendAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Sends the request and deserializes a successful JSON response.</summary>
-    /// <returns>The body, or <c>default</c> when the response carries none.</returns>
-    /// <exception cref="HttpBuilderException">The status was not a success.</exception>
-    Task<TValue?> SendAsync<TValue>(CancellationToken cancellationToken = default);
-
-    /// <summary>Sends the request and returns a successful response as text.</summary>
-    /// <exception cref="HttpBuilderException">The status was not a success.</exception>
-    Task<string> SendAsStringAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Sends the request with the given completion option and returns the raw response,
+    /// whatever its status. The caller owns it and must dispose it.
+    /// </summary>
+    Task<HttpResponseMessage> SendAsync(
+        HttpCompletionOption completionOption, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Sends the request and streams a successful newline-delimited JSON response,
-    /// yielding each line as it arrives rather than waiting for the body to end.
-    /// Blank lines and JSON <c>null</c>s are skipped.
+    /// Sends the request and verifies the status, returning the successful response.
+    /// Streaming callers pass <see cref="HttpCompletionOption.ResponseHeadersRead"/> so
+    /// the body can be read while the server is still generating it. The caller disposes
+    /// the response.
     /// </summary>
-    /// <exception cref="HttpBuilderException">The status was not a success.</exception>
-    IAsyncEnumerable<TValue> SendAsNdjsonAsync<TValue>(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Sends the request and streams the elements of a successful JSON-array response,
-    /// yielding each element as it arrives rather than waiting for the closing bracket.
-    /// JSON <c>null</c> elements are skipped.
-    /// </summary>
-    /// <exception cref="HttpBuilderException">The status was not a success.</exception>
-    IAsyncEnumerable<TValue> SendAsJsonStreamAsync<TValue>(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Sends the request and streams a successful <c>text/event-stream</c> response,
-    /// yielding the <c>data</c> payload of each server-sent event as it arrives.
-    /// Comment lines and other fields are skipped, multi-line data is joined with
-    /// newlines, JSON <c>null</c>s are skipped, and an OpenAI-style <c>[DONE]</c>
-    /// sentinel ends the stream.
-    /// </summary>
-    /// <exception cref="HttpBuilderException">The status was not a success.</exception>
-    IAsyncEnumerable<TValue> SendAsSseAsync<TValue>(CancellationToken cancellationToken = default);
+    /// <exception cref="HttpBuilderException">
+    /// The status was not a success. The body the exception carries is read capped, so an
+    /// oversized error response cannot exhaust memory.
+    /// </exception>
+    Task<HttpResponseMessage> SendCheckedAsync(
+        HttpCompletionOption completionOption, CancellationToken cancellationToken = default);
 }

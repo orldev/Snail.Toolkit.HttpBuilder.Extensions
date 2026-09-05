@@ -134,6 +134,49 @@ public class HttpStreamingTests
     }
 
     [Fact]
+    public async Task SseEvents_CarryEventTypeAndLastId()
+    {
+        var (client, _) = Arrange(Canned.Text(
+            """
+            id: 1
+            event: delta
+            data: {"field":"one"}
+
+            data: {"field":"two"}
+
+            """,
+            HttpStatusCode.OK));
+
+        var events = await client.StreamSseEvents("api/chat").ToListAsync();
+
+        Assert.Equal(["delta", null], events.Select(e => e.Event));
+        Assert.Equal(["1", "1"], events.Select(e => e.Id));
+        Assert.Equal(["one", "two"], events.Select(e => e.Data.Field));
+    }
+
+    [Fact]
+    public async Task Streaming_CancellationStopsTheStream()
+    {
+        var (client, _) = Arrange(Canned.Text(
+            """
+            {"field":"one"}
+            {"field":"two"}
+            {"field":"three"}
+            """,
+            HttpStatusCode.OK));
+
+        using var cancellation = new CancellationTokenSource();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (var _ in client.Stream("api/chat", new Request(), cancellation.Token))
+            {
+                cancellation.Cancel();
+            }
+        });
+    }
+
+    [Fact]
     public async Task Sse_FailureThrowsWithBody()
     {
         var (client, _) = Arrange(Canned.Text("quota exceeded", HttpStatusCode.TooManyRequests));

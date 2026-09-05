@@ -50,9 +50,6 @@ public abstract class TypedHttpClientBase(HttpClient client)
     /// <summary>Starts a <c>TRACE</c> request.</summary>
     protected IHttpRequestBuilder Trace(string path) => Request(HttpMethod.Trace, path);
 
-    /// <summary>Starts a <c>CONNECT</c> request.</summary>
-    protected IHttpRequestBuilder Connect(string path) => Request(HttpMethod.Connect, path);
-
     /// <summary>Starts a request with an arbitrary method.</summary>
     /// <param name="method">The method to use.</param>
     /// <param name="path">Relative to the client's base address, or an absolute URL.</param>

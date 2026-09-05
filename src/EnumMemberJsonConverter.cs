@@ -12,7 +12,8 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// <remarks>
 /// The built-in <see cref="JsonStringEnumConverter"/> ignores
 /// <see cref="EnumMemberAttribute"/>, so it cannot express <c>ONE_TIME</c> for a member
-/// called <c>OneTime</c>. Reading accepts either spelling; writing prefers the attribute.
+/// called <c>OneTime</c>. Reading accepts either spelling, ignores case, and takes a
+/// number too; writing prefers the attribute.
 /// </remarks>
 /// <example>
 /// <code>
@@ -27,7 +28,7 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 public sealed class EnumMemberJsonConverter<TEnum> : JsonConverter<TEnum> where TEnum : struct, Enum
 {
     private readonly Dictionary<TEnum, string> _enumToString = new();
-    private readonly Dictionary<string, TEnum> _stringToEnum = new();
+    private readonly Dictionary<string, TEnum> _stringToEnum = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Builds the name maps from the enum's members.</summary>
     /// <remarks>
@@ -61,16 +62,30 @@ public sealed class EnumMemberJsonConverter<TEnum> : JsonConverter<TEnum> where 
         }
     }
 
-    /// <summary>Reads an enum from its string form.</summary>
+    /// <summary>Reads an enum from its string or numeric form, ignoring case.</summary>
     /// <returns>
-    /// The matching member, or <c>default</c> if unrecognised, so an API adding a value
-    /// does not break deserialization of everything else.
+    /// The matching member, or <c>default</c> if unrecognised, so an API adding a value —
+    /// or switching its serializer to numbers — does not break deserialization of
+    /// everything else.
     /// </returns>
     public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        if (reader.TokenType == JsonTokenType.Number)
+        {
+            return reader.TryGetInt64(out var number) ? AsDefined(number) : default;
+        }
+
         var value = reader.GetString();
 
         return string.IsNullOrEmpty(value) ? default : _stringToEnum.GetValueOrDefault(value);
+    }
+
+    /// <summary>Maps a numeric wire value onto a defined member, or <c>default</c>.</summary>
+    private TEnum AsDefined(long number)
+    {
+        var value = (TEnum)Enum.ToObject(typeof(TEnum), number);
+
+        return _enumToString.ContainsKey(value) ? value : default;
     }
 
     /// <summary>Writes an enum as the string the API expects.</summary>

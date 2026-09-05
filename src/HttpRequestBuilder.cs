@@ -1,6 +1,4 @@
-using System.Net;
 using System.Net.Http.Json;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 
@@ -19,10 +17,13 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     private readonly List<KeyValuePair<string, string>> _query = [];
 
     private HttpContent? _content;
+    private object? _jsonBody;
+    private Type? _jsonBodyType;
+    private bool _hasJsonBody;
     private JsonSerializerOptions? _jsonOptions;
     private Version? _version;
     private HttpVersionPolicy? _versionPolicy;
-    private bool _sent;
+    private int _sent;
 
     /// <summary>Initializes a new instance of the <see cref="HttpRequestBuilder"/> class.</summary>
     public HttpRequestBuilder(HttpClient client, HttpMethod method, string path)
@@ -37,10 +38,29 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Web-style by default, the same convention
+    /// <see cref="HttpClientJsonExtensions"/> uses.
+    /// </remarks>
+    public JsonSerializerOptions JsonOptions => _jsonOptions ?? JsonSerializerOptions.Web;
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// The body is not serialized here: content is created at send time from
+    /// <see cref="JsonOptions"/>, so the options apply no matter which order they and
+    /// the body were given in.
+    /// </remarks>
     public IHttpRequestBuilder AsJson<TValue>(TValue value, JsonSerializerOptions? options = null)
     {
-        _jsonOptions ??= options;
-        _content = JsonContent.Create(value, mediaType: null, options);
+        if (options is not null)
+        {
+            _jsonOptions = options;
+        }
+
+        _content = null;
+        _jsonBody = value;
+        _jsonBodyType = typeof(TValue);
+        _hasJsonBody = true;
 
         return this;
     }
@@ -52,6 +72,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// </remarks>
     public IHttpRequestBuilder AsString(string value, Encoding? encoding = null, string? mediaType = null)
     {
+        _hasJsonBody = false;
         _content = new StringContent(value, encoding ?? Encoding.UTF8, mediaType ?? "text/plain");
 
         return this;
@@ -60,6 +81,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// <inheritdoc/>
     public IHttpRequestBuilder AsForm(IEnumerable<KeyValuePair<string, string>> fields)
     {
+        _hasJsonBody = false;
         _content = new FormUrlEncodedContent(fields);
 
         return this;
@@ -68,6 +90,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// <inheritdoc/>
     public IHttpRequestBuilder Content(HttpContent? content)
     {
+        _hasJsonBody = false;
         _content = content;
 
         return this;
@@ -142,270 +165,61 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     }
 
     /// <inheritdoc/>
-    public Task<HttpResponseMessage> SendAsync(CancellationToken cancellationToken = default)
+    public Task<HttpResponseMessage> SendAsync(CancellationToken cancellationToken = default) =>
+        SendAsync(HttpCompletionOption.ResponseContentRead, cancellationToken);
+
+    /// <inheritdoc/>
+    public Task<HttpResponseMessage> SendAsync(
+        HttpCompletionOption completionOption, CancellationToken cancellationToken = default)
     {
+        var message = CreateRequestMessage();
+
         MarkSent();
 
-        return _client.SendAsync(CreateRequestMessage(), cancellationToken);
+        return _client.SendAsync(message, completionOption, cancellationToken);
     }
 
     /// <inheritdoc/>
-    public async Task<TValue?> SendAsync<TValue>(CancellationToken cancellationToken = default)
+    public async Task<HttpResponseMessage> SendCheckedAsync(
+        HttpCompletionOption completionOption, CancellationToken cancellationToken = default)
     {
-        using var response = await SendCheckedAsync(
-            HttpCompletionOption.ResponseContentRead, cancellationToken).ConfigureAwait(false);
+        var response = await SendAsync(completionOption, cancellationToken).ConfigureAwait(false);
 
-        if (IsEmpty(response))
+        if (response.IsSuccessStatusCode)
         {
-            return default;
+            return response;
         }
-
-        return await response.Content
-            .ReadFromJsonAsync<TValue>(JsonOptions, cancellationToken)
-            .ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
-    public async Task<string> SendAsStringAsync(CancellationToken cancellationToken = default)
-    {
-        using var response = await SendCheckedAsync(
-            HttpCompletionOption.ResponseContentRead, cancellationToken).ConfigureAwait(false);
-
-        return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <inheritdoc/>
-    /// <remarks>
-    /// Lines are read to null, never through <see cref="StreamReader.EndOfStream"/>: on a
-    /// live network stream that property blocks the thread with a synchronous read while
-    /// it waits for the next chunk.
-    /// </remarks>
-    public async IAsyncEnumerable<TValue> SendAsNdjsonAsync<TValue>(
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        using var response = await SendCheckedAsync(
-            HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-
-        await using var stream = await response.Content
-            .ReadAsStreamAsync(cancellationToken)
-            .ConfigureAwait(false);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-
-        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
-        {
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
-
-            var value = JsonSerializer.Deserialize<TValue>(line, JsonOptions);
-
-            if (value is not null)
-            {
-                yield return value;
-            }
-        }
-    }
-
-    /// <inheritdoc/>
-    public async IAsyncEnumerable<TValue> SendAsJsonStreamAsync<TValue>(
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        using var response = await SendCheckedAsync(
-            HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-
-        await using var stream = await response.Content
-            .ReadAsStreamAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        await foreach (var value in JsonSerializer
-                           .DeserializeAsyncEnumerable<TValue>(stream, JsonOptions, cancellationToken)
-                           .ConfigureAwait(false))
-        {
-            if (value is not null)
-            {
-                yield return value;
-            }
-        }
-    }
-
-    /// <inheritdoc/>
-    public async IAsyncEnumerable<TValue> SendAsSseAsync<TValue>(
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        using var response = await SendCheckedAsync(
-            HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-
-        await using var stream = await response.Content
-            .ReadAsStreamAsync(cancellationToken)
-            .ConfigureAwait(false);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
-
-        await foreach (var payload in ReadEventDataAsync(reader, cancellationToken)
-                           .ConfigureAwait(false))
-        {
-            if (payload == DoneSentinel)
-            {
-                yield break;
-            }
-
-            var value = JsonSerializer.Deserialize<TValue>(payload, JsonOptions);
-
-            if (value is not null)
-            {
-                yield return value;
-            }
-        }
-    }
-
-    /// <summary>
-    /// The <c>data:</c> terminator OpenAI ends a stream with, a convention most LLM
-    /// providers copied. It is not part of the SSE specification.
-    /// </summary>
-    private const string DoneSentinel = "[DONE]";
-
-    /// <summary>
-    /// Yields the assembled <c>data</c> payload of each server-sent event, joining
-    /// multi-line data with newlines. Comment lines and other fields are skipped.
-    /// </summary>
-    /// <remarks>
-    /// An event is dispatched on its blank separator line and, unlike the letter of the
-    /// SSE specification, once more at end of stream, because servers routinely omit the
-    /// final separator.
-    /// </remarks>
-    private static async IAsyncEnumerable<string> ReadEventDataAsync(
-        StreamReader reader, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        var data = new StringBuilder();
-
-        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
-        {
-            if (line.Length == 0)
-            {
-                if (data.Length > 0)
-                {
-                    yield return data.ToString();
-                    data.Clear();
-                }
-
-                continue;
-            }
-
-            if (!TryReadDataField(line, out var value))
-            {
-                continue;
-            }
-
-            if (data.Length > 0)
-            {
-                data.Append('\n');
-            }
-
-            data.Append(value);
-        }
-
-        if (data.Length > 0)
-        {
-            yield return data.ToString();
-        }
-    }
-
-    /// <summary>Reads the value of an SSE <c>data</c> field line.</summary>
-    /// <remarks>
-    /// Per the SSE field syntax: the name ends at the first colon, and exactly one space
-    /// after the colon belongs to the syntax, not the value. A bare <c>data</c> line with
-    /// no colon carries an empty value; fields with other names do not match.
-    /// </remarks>
-    private static bool TryReadDataField(string line, out string value)
-    {
-        value = string.Empty;
-
-        if (!line.StartsWith("data", StringComparison.Ordinal))
-        {
-            return false;
-        }
-
-        if (line.Length == "data".Length)
-        {
-            return true;
-        }
-
-        if (line["data".Length] != ':')
-        {
-            return false;
-        }
-
-        var rest = line[("data".Length + 1)..];
-        value = rest.StartsWith(' ') ? rest[1..] : rest;
-
-        return true;
-    }
-
-    /// <summary>
-    /// The options every typed terminal reads with. Web-style by default, the same
-    /// convention <see cref="HttpClientJsonExtensions"/> uses.
-    /// </summary>
-    private JsonSerializerOptions JsonOptions => _jsonOptions ?? JsonSerializerOptions.Web;
-
-    /// <summary>
-    /// Marks the one send this builder describes, so a second send fails loudly instead
-    /// of reusing content the first send already disposed.
-    /// </summary>
-    private void MarkSent()
-    {
-        if (_sent)
-        {
-            throw new InvalidOperationException(
-                "This builder has already sent its request. A builder describes one "
-                + "request; start the next call from a verb on the client.");
-        }
-
-        _sent = true;
-    }
-
-    /// <summary>
-    /// Sends the request and verifies the status. Streaming callers pass
-    /// <see cref="HttpCompletionOption.ResponseHeadersRead"/> so the body can be read
-    /// while the server is still generating it. The caller disposes the response.
-    /// </summary>
-    private async Task<HttpResponseMessage> SendCheckedAsync(
-        HttpCompletionOption completionOption, CancellationToken cancellationToken)
-    {
-        MarkSent();
-
-        var request = CreateRequestMessage();
-        var requestUri = request.RequestUri;
-
-        var response = await _client
-            .SendAsync(request, completionOption, cancellationToken)
-            .ConfigureAwait(false);
 
         try
         {
-            await EnsureSuccessAsync(response, requestUri, cancellationToken).ConfigureAwait(false);
+            var body = await ReadCappedBodyAsync(response, cancellationToken).ConfigureAwait(false);
+
+            throw new HttpBuilderException(
+                _method, CreateRequestUri(), response.StatusCode, response.ReasonPhrase, body);
         }
-        catch
+        finally
         {
             response.Dispose();
-            throw;
         }
-
-        return response;
     }
 
     /// <summary>Assembles the message. Internal so tests can inspect it.</summary>
     /// <remarks>
     /// A header the request collection rejects belongs to the content, and lands there as
     /// a replacement rather than an addition: the body already carries a
-    /// <c>Content-Type</c>, and naming one means overriding it.
+    /// <c>Content-Type</c>, and naming one means overriding it. The HTTP version and
+    /// policy default to what the client is configured with, so a typed client set up
+    /// for HTTP/2 is not silently downgraded.
     /// </remarks>
     internal HttpRequestMessage CreateRequestMessage()
     {
         var message = new HttpRequestMessage(_method, CreateRequestUri())
         {
-            Content = _content,
-            Version = _version ?? HttpVersion.Version11,
-            VersionPolicy = _versionPolicy ?? HttpVersionPolicy.RequestVersionOrLower
+            Content = _hasJsonBody
+                ? JsonContent.Create(_jsonBody, _jsonBodyType!, mediaType: null, JsonOptions)
+                : _content,
+            Version = _version ?? _client.DefaultRequestVersion,
+            VersionPolicy = _versionPolicy ?? _client.DefaultVersionPolicy
         };
 
         foreach (var (name, value) in _headers)
@@ -423,6 +237,69 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
         }
 
         return message;
+    }
+
+    /// <summary>
+    /// Marks the one send this builder describes, so a second send fails loudly instead
+    /// of reusing content the first send already disposed.
+    /// </summary>
+    /// <remarks>
+    /// Set atomically, so the guard holds even for two racing sends, and only after the
+    /// message was assembled, so a failed assembly does not brand an unsent builder as
+    /// sent.
+    /// </remarks>
+    private void MarkSent()
+    {
+        if (Interlocked.Exchange(ref _sent, 1) == 1)
+        {
+            throw new InvalidOperationException(
+                "This builder has already sent its request. A builder describes one "
+                + "request; start the next call from a verb on the client.");
+        }
+    }
+
+    /// <summary>Reads at most <see cref="HttpBuilderException.BodyLimit"/> characters of a failure body.</summary>
+    /// <remarks>
+    /// The cap is applied at the stream, not after buffering, so an oversized — or
+    /// endless, on a streaming endpoint — error response cannot exhaust memory. An
+    /// unreadable body yields null: the status is the news, and a failed read must not
+    /// mask it.
+    /// </remarks>
+    private static async Task<string?> ReadCappedBodyAsync(
+        HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var stream = await response.Content
+                .ReadAsStreamAsync(cancellationToken)
+                .ConfigureAwait(false);
+            using var reader = new StreamReader(stream, Encoding.UTF8);
+
+            var buffer = new char[HttpBuilderException.BodyLimit + 1];
+            var filled = 0;
+
+            while (filled < buffer.Length)
+            {
+                var read = await reader
+                    .ReadAsync(buffer.AsMemory(filled), cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (read == 0)
+                {
+                    break;
+                }
+
+                filled += read;
+            }
+
+            return filled > HttpBuilderException.BodyLimit
+                ? $"{new string(buffer, 0, HttpBuilderException.BodyLimit)}…"
+                : new string(buffer, 0, filled);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
     }
 
     /// <summary>Resolves the request URI against the client's base address.</summary>
@@ -472,41 +349,4 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
 
         return path.Contains('?') ? $"{path}&{query}" : $"{path}?{query}";
     }
-
-    /// <summary>Turns a failure status into an exception carrying the response body.</summary>
-    /// <remarks>
-    /// A failed body read is swallowed: the status is the news, and an unreadable body
-    /// must not mask it.
-    /// </remarks>
-    private async Task EnsureSuccessAsync(
-        HttpResponseMessage response, Uri? requestUri, CancellationToken cancellationToken)
-    {
-        if (response.IsSuccessStatusCode)
-        {
-            return;
-        }
-
-        string? body = null;
-
-        try
-        {
-            body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-            if (body.Length > HttpBuilderException.BodyLimit)
-            {
-                body = $"{body[..HttpBuilderException.BodyLimit]}…";
-            }
-        }
-        catch (Exception) when (!cancellationToken.IsCancellationRequested)
-        {
-        }
-
-        throw new HttpBuilderException(
-            _method, requestUri, response.StatusCode, response.ReasonPhrase, body);
-    }
-
-    /// <summary>Whether the response carries no body, so <c>default</c> beats a parse error.</summary>
-    private static bool IsEmpty(HttpResponseMessage response) =>
-        response.StatusCode is HttpStatusCode.NoContent or HttpStatusCode.ResetContent
-        || response.Content.Headers.ContentLength == 0;
 }

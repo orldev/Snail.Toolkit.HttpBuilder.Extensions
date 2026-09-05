@@ -38,26 +38,33 @@ await Get("v1/things/1").SendAsync<Thing>(ct);   // no body, no X-Trace
 
 | Method | |
 | --- | --- |
-| `AsJson(value, options?)` | JSON body; `options` are reused to read the response |
+| `AsJson(value, options?)` | JSON body, serialized at send time; `options`, when given, become the builder's JSON options |
 | `AsString(value, encoding?, mediaType?)` | UTF-8 and `text/plain` by default |
 | `AsForm(fields)` | `application/x-www-form-urlencoded` |
 | `Content(httpContent)` | a body you prepared yourself |
 | `Header(name, value)` / `Headers(pairs)` | additive; content headers are routed to the body |
 | `Accept(mediaType)` | shorthand for the `Accept` header |
 | `Query(name, value)` / `Query(pairs)` | escaped and appended; **null values are skipped** |
-| `WithVersion` / `WithVersionPolicy` | HTTP version and how strictly to apply it |
-| `WithJsonOptions(options)` | serializer options for reading the response |
+| `WithVersion` / `WithVersionPolicy` | HTTP version; defaults to the client's `DefaultRequestVersion` and policy |
+| `WithJsonOptions(options)` | serializer options for the body and the response; the options given last win |
 
 #### Sending
 
 | Method | |
 | --- | --- |
 | `SendAsync(ct)` | the raw `HttpResponseMessage`, whatever its status — **you dispose it** |
+| `SendCheckedAsync(option, ct)` | the raw response with the status verified — a failure throws |
 | `SendAsync<T>(ct)` | deserializes JSON; `default` when the response has no content |
 | `SendAsStringAsync(ct)` | the body as text |
 | `SendAsNdjsonAsync<T>(ct)` | streams newline-delimited JSON, one `T` per line as it arrives |
 | `SendAsJsonStreamAsync<T>(ct)` | streams the elements of a JSON array as they arrive |
 | `SendAsSseAsync<T>(ct)` | streams the `data` payloads of server-sent events as they arrive |
+| `SendAsSseEventsAsync<T>(ct)` | streams whole server-sent events, keeping `event` names and ids |
+
+`IHttpRequestBuilder` itself carries only the configuration and the raw and checked
+sends and is **frozen**; the typed and streaming terminals are extension methods
+(`HttpRequestTerminals`), so a new response format never breaks an implementor of the
+interface.
 
 A builder is **single-use**: sending disposes the request content, so a second send on
 the same instance throws `InvalidOperationException`. Start the next call from a verb
@@ -65,7 +72,8 @@ on the client.
 
 The typed overloads throw `HttpBuilderException` on a failure status. It carries
 the method, URI, status and — the useful part — the **response body**, which is where
-APIs explain what was wrong and which is otherwise lost:
+APIs explain what was wrong and which is otherwise lost. The body is read capped (4 KB),
+so an oversized error response cannot exhaust memory:
 
 ```csharp
 catch (HttpBuilderException ex)
@@ -116,6 +124,10 @@ public class ChatClient(HttpClient client) : TypedHttpClientBase(client)
 }
 ```
 
+When the event names matter — Anthropic-style streams discriminate on `event:` —
+`SendAsSseEventsAsync<T>` yields whole events instead, keeping each event's name and
+the stream's last `id` alongside the parsed payload.
+
 All of them honour `WithJsonOptions` and default to web-style (camelCase,
 case-insensitive) options, the same as `SendAsync<T>`, and all throw
 `HttpBuilderException` with the response body on a failure status.
@@ -159,9 +171,11 @@ public enum PaymentType
 }
 ```
 
-Both the member name and the `EnumMember` value are accepted when reading. An
-unrecognised string reads as `default` rather than throwing, so an API adding a value
-does not break deserialization of everything else.
+Both the member name and the `EnumMember` value are accepted when reading, ignoring
+case, and a numeric wire value maps onto the defined member it names. Anything
+unrecognised reads as `default` rather than throwing, so an API adding a value — or
+switching its serializer to numbers — does not break deserialization of everything
+else.
 
 ## License
 

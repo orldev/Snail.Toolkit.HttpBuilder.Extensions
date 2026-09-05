@@ -1,37 +1,23 @@
 using System.Net.Http.Headers;
-using System.Text;
 
 namespace Snail.Toolkit.HttpBuilder.Extensions.Tests.Extensions;
 
+/// <summary>Rendering helpers the Moq matchers compare requests with.</summary>
+/// <remarks>
+/// Content is read synchronously because a Moq matcher is a synchronous predicate; the
+/// content under test is always in-memory, so the read completes without blocking.
+/// </remarks>
 public static class Extensions
 {
-    public static string AsString<TKey,TValue>(this IDictionary<TKey,TValue> dict)
-    {
-        var sb = new StringBuilder();
-        foreach (var (key, value) in dict) {
-            sb.Append($"[{key}:{value}]");
-        }
-        return sb.ToString();
-    }
-    
-    public static Dictionary<string, string> AsDictionary(this HttpHeaders headers)
-    {
-        var dict = new Dictionary<string, string>();
+    /// <summary>Renders a dictionary as one comparable string.</summary>
+    public static string AsString<TKey, TValue>(this IDictionary<TKey, TValue> dictionary) =>
+        string.Concat(dictionary.Select(pair => $"[{pair.Key}:{pair.Value}]"));
 
-        foreach (var (key, value) in headers.ToList())
-        {
-            var header = value.Aggregate(string.Empty, (current, v) => current + v + " ");
-                
-            // Trim the trailing space and add item to the dictionary
-            header = header.TrimEnd(" ".ToCharArray());
-            dict.Add(key, header);
-        }
+    /// <summary>Renders headers as a dictionary of space-joined values.</summary>
+    public static Dictionary<string, string> AsDictionary(this HttpHeaders headers) =>
+        headers.ToDictionary(header => header.Key, header => string.Join(' ', header.Value));
 
-        return dict;
-    }
-    
-    public static string? AsString(this HttpContent? content)
-    {
-        return content?.ReadAsStringAsync().Result;
-    }
+    /// <summary>Reads content as text; null when there is none.</summary>
+    public static string? AsString(this HttpContent? content) =>
+        content?.ReadAsStringAsync().GetAwaiter().GetResult();
 }

@@ -58,6 +58,13 @@ public class SampleExample(HttpClient client) : TypedHttpClientBase(client)
             .Accept("text/event-stream")
             .SendAsSseAsync<Response>(cancellationToken);
 
+    /// <summary>Streams whole server-sent events, keeping their names and ids.</summary>
+    public IAsyncEnumerable<SseEvent<Response>> StreamSseEvents(
+        string path, CancellationToken cancellationToken = default) =>
+        base.Get(path)
+            .Accept("text/event-stream")
+            .SendAsSseEventsAsync<Response>(cancellationToken);
+
     /// <summary>Posts a body, so a following call can be checked for not inheriting it.</summary>
     public Task<Response?> Post(
         string path, Request request, string header, CancellationToken cancellationToken = default) =>
