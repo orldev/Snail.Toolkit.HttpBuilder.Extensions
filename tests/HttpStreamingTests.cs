@@ -154,6 +154,31 @@ public class HttpStreamingTests
         Assert.Equal(["one", "two"], events.Select(e => e.Data.Field));
     }
 
+    /// <summary>
+    /// The wire format's corners: a field with no colon has an empty value, the space after
+    /// the colon is optional and only one is removed, and a value may hold more colons.
+    /// </summary>
+    [Fact]
+    public async Task SseEvents_FieldsWithoutColonOrSpace_ReadAsTheSpecificationSays()
+    {
+        var (client, _) = Arrange(Canned.Text(
+            """
+            event:tick:tock
+            id
+            data:{"field":
+            data
+            data:  "x"}
+
+            """,
+            HttpStatusCode.OK));
+
+        var received = Assert.Single(await client.StreamSseEvents("api/chat").ToListAsync());
+
+        Assert.Equal("tick:tock", received.Event);
+        Assert.Equal(string.Empty, received.Id);
+        Assert.Equal("x", received.Data.Field);
+    }
+
     [Fact]
     public async Task Streaming_CancellationStopsTheStream()
     {

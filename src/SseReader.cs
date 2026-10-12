@@ -48,7 +48,7 @@ internal static class SseReader
                 continue;
             }
 
-            var (name, value) = ReadField(line);
+            ReadField(line, out var name, out var value);
 
             switch (name)
             {
@@ -61,10 +61,10 @@ internal static class SseReader
                     data.Append(value);
                     break;
                 case "event":
-                    eventType = value;
+                    eventType = value.ToString();
                     break;
                 case "id":
-                    id = value;
+                    id = value.ToString();
                     break;
             }
         }
@@ -75,18 +75,29 @@ internal static class SseReader
         }
     }
 
-    /// <summary>Splits an SSE field line into its name and value.</summary>
-    private static (string Name, string Value) ReadField(string line)
+    /// <summary>Splits an SSE field line into its name and value, both views of the line.</summary>
+    /// <remarks>
+    /// Views rather than substrings: a <c>data</c> value goes straight into the event's buffer, and
+    /// only the fields kept past the line, <c>event</c> and <c>id</c>, become strings.
+    /// </remarks>
+    private static void ReadField(string line, out ReadOnlySpan<char> name, out ReadOnlySpan<char> value)
     {
         var colon = line.IndexOf(':', StringComparison.Ordinal);
 
         if (colon < 0)
         {
-            return (line, string.Empty);
+            name = line;
+            value = [];
+
+            return;
         }
 
-        var value = line[(colon + 1)..];
+        name = line.AsSpan(0, colon);
+        value = line.AsSpan(colon + 1);
 
-        return (line[..colon], value.StartsWith(' ') ? value[1..] : value);
+        if (value.StartsWith(' '))
+        {
+            value = value[1..];
+        }
     }
 }

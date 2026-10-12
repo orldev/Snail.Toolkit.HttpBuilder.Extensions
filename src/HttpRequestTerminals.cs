@@ -26,7 +26,8 @@ public static class HttpRequestTerminals
     /// <remarks>
     /// Emptiness is judged by the bytes actually received, never by <c>Content-Length</c>,
     /// so a chunked response with no body reads as <c>default</c> rather than as a parse
-    /// error.
+    /// error. The body is parsed from a pooled copy of the buffered response, not from a
+    /// new array of its size.
     /// </remarks>
     public static async Task<TValue?> SendAsync<TValue>(
         this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)
@@ -35,14 +36,14 @@ public static class HttpRequestTerminals
             .SendCheckedAsync(HttpCompletionOption.ResponseContentRead, cancellationToken)
             .ConfigureAwait(false);
 
-        var body = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        using var body = await PooledBody.ReadAsync(response.Content, cancellationToken).ConfigureAwait(false);
 
         if (body.Length == 0)
         {
             return default;
         }
 
-        return JsonSerializer.Deserialize<TValue>(body, builder.JsonOptions);
+        return JsonSerializer.Deserialize<TValue>(body.Span, builder.JsonOptions);
     }
 
     /// <summary>Sends the request and returns a successful response as text.</summary>

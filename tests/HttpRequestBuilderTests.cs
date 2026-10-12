@@ -1,5 +1,7 @@
 using System.Net;
+using System.Text;
 using System.Text.Json;
+using Moq;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.Contracts;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.Extensions;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.HttpEndpoints;
@@ -303,6 +305,42 @@ public class HttpRequestBuilderTests
     }
 
     /// <summary>
+    /// A builder of another implementation may hand back a body it never buffered; the
+    /// typed terminal still reads every byte of it, and nothing as nothing.
+    /// </summary>
+    [Theory]
+    [InlineData("""{"field":"streamed"}""", "streamed")]
+    [InlineData("", null)]
+    public async Task UnbufferedBody_ReadsLikeABufferedOne(string body, string? expected)
+    {
+        var builder = new Mock<IHttpRequestBuilder>();
+        builder.SetupGet(b => b.JsonOptions).Returns(JsonSerializerOptions.Web);
+        builder
+            .Setup(b => b.SendCheckedAsync(HttpCompletionOption.ResponseContentRead, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new ForwardOnlyStream(Encoding.UTF8.GetBytes(body)))
+            });
+
+        var response = await builder.Object.SendAsync<Response>();
+
+        Assert.Equal(expected, response?.Field);
+    }
+
+    /// <summary>A body larger than the pool's smaller buckets comes back whole.</summary>
+    [Fact]
+    public async Task LargeBody_ReadsWhole()
+    {
+        var field = new string('x', 600_000);
+        var handler = new RecordingHandler(Canned.Text($$"""{"field":"{{field}}"}""", HttpStatusCode.OK));
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("https://www.example.com") };
+
+        var response = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsync<Response>();
+
+        Assert.Equal(field, response?.Field);
+    }
+
+    /// <summary>
     /// The send disposes the request content, so a second send on the same builder would
     /// reuse what is gone; it fails loudly instead.
     /// </summary>
@@ -362,6 +400,19 @@ public class HttpRequestBuilderTests
     private sealed class Plain
     {
         public string? Field { get; set; }
+    }
+
+    private sealed class ForwardOnlyStream(byte[] bytes) : MemoryStream(bytes)
+    {
+        public override bool CanSeek => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
     }
 
     private sealed class UnsizedEmptyHandler : HttpMessageHandler
