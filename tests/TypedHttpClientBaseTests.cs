@@ -18,10 +18,9 @@ public class TypedHttpClientBaseTests
     [InlineData("PATCH")]
     public async Task HttpMethod_FullHttpRequestMessage_ReturnEqual(string httpMethod)
     {
-        // ARRANGE
         var fakeBaseAddress = "https://www.example.com";
         var path = "myEndpoint";
-        
+
         var requestMethod = HttpMethod.Parse(httpMethod);
         var requestUrl = $"{fakeBaseAddress}/{path}";
         var requestVersion = HttpVersion.Version11;
@@ -32,30 +31,28 @@ public class TypedHttpClientBaseTests
         {
             {"Authorization", "Basic 12345"}
         };
-        
-        var response = new Response { Field = Guid.NewGuid().ToString("N")};
-        
+
+        var response = new Response { Field = Guid.NewGuid().ToString("N") };
+
         var handlerMock = new Mock<HttpMessageHandler>();
         handlerMock
-            .SetupSendAsync(requestMethod, 
+            .SetupSendAsync(requestMethod,
                 requestUrl,
                 requestContent,
                 requestHeaders,
-                requestVersion, 
+                requestVersion,
                 requestVersionPolicy)
             .ReturnsHttpResponseAsync(response, HttpStatusCode.OK);
-        
+
         var httpClient = new HttpClient(handlerMock.Object)
         {
             BaseAddress = new Uri(fakeBaseAddress)
         };
-        
+
         var client = new SampleExample(httpClient);
-        
-        // ACT
+
         var result = await client.Run(requestMethod, path, request, requestHeaders, requestVersion, requestVersionPolicy);
-        
-        // ASSERT
+
         Assert.NotNull(result);
         handlerMock.Protected().Verify(
             "SendAsync",
@@ -71,7 +68,7 @@ public class TypedHttpClientBaseTests
             ),
             ItExpr.IsAny<CancellationToken>());
     }
-    
+
     [Theory]
     [InlineData("HEAD")]
     [InlineData("OPTIONS")]
@@ -79,31 +76,28 @@ public class TypedHttpClientBaseTests
     [InlineData("CONNECT")]
     public async Task HttpMethod_PartialHttpRequestMessage_ReturnEqual(string httpMethod)
     {
-        // ARRANGE
         var fakeBaseAddress = "https://www.example.com";
         var path = "myEndpoint";
-        
+
         var requestMethod = HttpMethod.Parse(httpMethod);
         var requestUrl = $"{fakeBaseAddress}/{path}";
         var response = "string";
-        
+
         var handlerMock = new Mock<HttpMessageHandler>();
         handlerMock
-            .SetupSendAsync(requestMethod, 
+            .SetupSendAsync(requestMethod,
                 requestUrl)
             .ReturnsHttpResponseAsync(response, HttpStatusCode.OK);
-        
+
         var httpClient = new HttpClient(handlerMock.Object)
         {
             BaseAddress = new Uri(fakeBaseAddress)
         };
-        
+
         var client = new SampleExample(httpClient);
-        
-        // ACT
+
         var result = await client.Run(requestMethod, path);
-        
-        // ASSERT
+
         Assert.NotNull(result);
         handlerMock.Protected().Verify(
             "SendAsync",
@@ -115,5 +109,5 @@ public class TypedHttpClientBaseTests
             ),
             ItExpr.IsAny<CancellationToken>());
     }
-    
+
 }

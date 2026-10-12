@@ -10,37 +10,33 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// that explanation is gone by the time a deserialization error surfaces. Derives from
 /// <see cref="HttpRequestException"/> so existing handlers keep catching it.
 /// </remarks>
-public sealed class HttpBuilderException : HttpRequestException
+/// <param name="method">The method of the request that failed.</param>
+/// <param name="requestUri">The URI of the request that failed.</param>
+/// <param name="statusCode">The failure status the response carried.</param>
+/// <param name="reasonPhrase">The reason phrase, if the server sent one.</param>
+/// <param name="body">The response body, truncated; null if it could not be read.</param>
+public sealed class HttpBuilderException(
+    HttpMethod method,
+    Uri? requestUri,
+    HttpStatusCode statusCode,
+    string? reasonPhrase,
+    string? body)
+    : HttpRequestException(Describe(method, requestUri, statusCode, reasonPhrase, body), null, statusCode)
 {
     /// <summary>How much of the response body is kept in the message.</summary>
     internal const int BodyLimit = 4096;
 
-    /// <summary>Initializes a new instance of the <see cref="HttpBuilderException"/> class.</summary>
-    public HttpBuilderException(
-        HttpMethod method,
-        Uri? requestUri,
-        HttpStatusCode statusCode,
-        string? reasonPhrase,
-        string? body)
-        : base(Describe(method, requestUri, statusCode, reasonPhrase, body), null, statusCode)
-    {
-        Method = method;
-        RequestUri = requestUri;
-        ReasonPhrase = reasonPhrase;
-        Body = body;
-    }
-
     /// <summary>Gets the method of the request that failed.</summary>
-    public HttpMethod Method { get; }
+    public HttpMethod Method { get; } = method;
 
     /// <summary>Gets the URI of the request that failed.</summary>
-    public Uri? RequestUri { get; }
+    public Uri? RequestUri { get; } = requestUri;
 
     /// <summary>Gets the reason phrase, if the server sent one.</summary>
-    public string? ReasonPhrase { get; }
+    public string? ReasonPhrase { get; } = reasonPhrase;
 
     /// <summary>Gets the response body, truncated. Null if it could not be read.</summary>
-    public string? Body { get; }
+    public string? Body { get; } = body;
 
     private static string Describe(
         HttpMethod method,

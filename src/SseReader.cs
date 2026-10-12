@@ -78,7 +78,7 @@ internal static class SseReader
     /// <summary>Splits an SSE field line into its name and value.</summary>
     private static (string Name, string Value) ReadField(string line)
     {
-        var colon = line.IndexOf(':');
+        var colon = line.IndexOf(':', StringComparison.Ordinal);
 
         if (colon < 0)
         {

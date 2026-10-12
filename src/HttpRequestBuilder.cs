@@ -347,6 +347,6 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
             '&',
             _query.Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value)}"));
 
-        return path.Contains('?') ? $"{path}&{query}" : $"{path}?{query}";
+        return path.Contains('?', StringComparison.Ordinal) ? $"{path}&{query}" : $"{path}?{query}";
     }
 }

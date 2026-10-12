@@ -1,0 +1,80 @@
+#nullable enable
+Snail.Toolkit.HttpBuilder.Extensions.EnumMemberJsonConverter<TEnum>
+Snail.Toolkit.HttpBuilder.Extensions.EnumMemberJsonConverter<TEnum>.EnumMemberJsonConverter() -> void
+Snail.Toolkit.HttpBuilder.Extensions.HttpBuilderException
+Snail.Toolkit.HttpBuilder.Extensions.HttpBuilderException.Body.get -> string?
+Snail.Toolkit.HttpBuilder.Extensions.HttpBuilderException.HttpBuilderException(System.Net.Http.HttpMethod! method, System.Uri? requestUri, System.Net.HttpStatusCode statusCode, string? reasonPhrase, string? body) -> void
+Snail.Toolkit.HttpBuilder.Extensions.HttpBuilderException.Method.get -> System.Net.Http.HttpMethod!
+Snail.Toolkit.HttpBuilder.Extensions.HttpBuilderException.ReasonPhrase.get -> string?
+Snail.Toolkit.HttpBuilder.Extensions.HttpBuilderException.RequestUri.get -> System.Uri?
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.Accept(string! mediaType) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.AsForm(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! fields) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.AsJson<TValue>(TValue value, System.Text.Json.JsonSerializerOptions? options = null) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.AsString(string! value, System.Text.Encoding? encoding = null, string? mediaType = null) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.Content(System.Net.Http.HttpContent? content) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.Header(string! name, string? value) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.Headers(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! headers) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.HttpRequestBuilder(System.Net.Http.HttpClient! client, System.Net.Http.HttpMethod! method, string! path) -> void
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.JsonOptions.get -> System.Text.Json.JsonSerializerOptions!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.Query(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string?>>! parameters) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.Query(string! name, string? value) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.SendAsync(System.Net.Http.HttpCompletionOption completionOption, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage!>!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage!>!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.SendCheckedAsync(System.Net.Http.HttpCompletionOption completionOption, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage!>!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.WithJsonOptions(System.Text.Json.JsonSerializerOptions? options) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.WithVersion(System.Version! version) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestBuilder.WithVersionPolicy(System.Net.Http.HttpVersionPolicy policy) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.HttpRequestTerminals
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.Accept(string! mediaType) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.AsForm(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! fields) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.AsJson<TValue>(TValue value, System.Text.Json.JsonSerializerOptions? options = null) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.AsString(string! value, System.Text.Encoding? encoding = null, string? mediaType = null) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.Content(System.Net.Http.HttpContent? content) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.Header(string! name, string? value) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.Headers(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string!>>! headers) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.JsonOptions.get -> System.Text.Json.JsonSerializerOptions!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.Query(System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string!, string?>>! parameters) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.Query(string! name, string? value) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.SendAsync(System.Net.Http.HttpCompletionOption completionOption, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage!>!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.SendAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage!>!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.SendCheckedAsync(System.Net.Http.HttpCompletionOption completionOption, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage!>!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.WithJsonOptions(System.Text.Json.JsonSerializerOptions? options) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.WithVersion(System.Version! version) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder.WithVersionPolicy(System.Net.Http.HttpVersionPolicy policy) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.<Clone>$() -> Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>!
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.Data.get -> TValue
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.Data.init -> void
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.Deconstruct(out string? Event, out string? Id, out TValue Data) -> void
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.Equals(Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>? other) -> bool
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.Event.get -> string?
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.Event.init -> void
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.Id.get -> string?
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.Id.init -> void
+Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.SseEvent(string? Event, string? Id, TValue Data) -> void
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase.Delete(string! path) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase.Get(string! path) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase.Head(string! path) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase.Options(string! path) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase.Patch(string! path) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase.Post(string! path) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase.Put(string! path) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase.Request(System.Net.Http.HttpMethod! method, string! path) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase.Trace(string! path) -> Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder!
+Snail.Toolkit.HttpBuilder.Extensions.TypedHttpClientBase.TypedHttpClientBase(System.Net.Http.HttpClient! client) -> void
+override Snail.Toolkit.HttpBuilder.Extensions.EnumMemberJsonConverter<TEnum>.Read(ref System.Text.Json.Utf8JsonReader reader, System.Type! typeToConvert, System.Text.Json.JsonSerializerOptions! options) -> TEnum
+override Snail.Toolkit.HttpBuilder.Extensions.EnumMemberJsonConverter<TEnum>.Write(System.Text.Json.Utf8JsonWriter! writer, TEnum value, System.Text.Json.JsonSerializerOptions! options) -> void
+override Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.Equals(object? obj) -> bool
+override Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.GetHashCode() -> int
+override Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.ToString() -> string!
+static Snail.Toolkit.HttpBuilder.Extensions.HttpRequestTerminals.SendAsJsonStreamAsync<TValue>(this Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder! builder, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TValue>!
+static Snail.Toolkit.HttpBuilder.Extensions.HttpRequestTerminals.SendAsNdjsonAsync<TValue>(this Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder! builder, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TValue>!
+static Snail.Toolkit.HttpBuilder.Extensions.HttpRequestTerminals.SendAsSseAsync<TValue>(this Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder! builder, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<TValue>!
+static Snail.Toolkit.HttpBuilder.Extensions.HttpRequestTerminals.SendAsSseEventsAsync<TValue>(this Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder! builder, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>!>!
+static Snail.Toolkit.HttpBuilder.Extensions.HttpRequestTerminals.SendAsStringAsync(this Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder! builder, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<string!>!
+static Snail.Toolkit.HttpBuilder.Extensions.HttpRequestTerminals.SendAsync<TValue>(this Snail.Toolkit.HttpBuilder.Extensions.IHttpRequestBuilder! builder, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<TValue?>!
+static Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.operator !=(Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>? left, Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>? right) -> bool
+static Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>.operator ==(Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>? left, Snail.Toolkit.HttpBuilder.Extensions.SseEvent<TValue>? right) -> bool

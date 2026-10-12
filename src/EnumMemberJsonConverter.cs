@@ -27,7 +27,7 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// </example>
 public sealed class EnumMemberJsonConverter<TEnum> : JsonConverter<TEnum> where TEnum : struct, Enum
 {
-    private readonly Dictionary<TEnum, string> _enumToString = new();
+    private readonly Dictionary<TEnum, string> _enumToString = [];
     private readonly Dictionary<string, TEnum> _stringToEnum = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Builds the name maps from the enum's members.</summary>

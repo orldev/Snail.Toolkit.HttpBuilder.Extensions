@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Headers;
 
 namespace Snail.Toolkit.HttpBuilder.Extensions.Tests.Extensions;
@@ -18,6 +19,8 @@ public static class Extensions
         headers.ToDictionary(header => header.Key, header => string.Join(' ', header.Value));
 
     /// <summary>Reads content as text; null when there is none.</summary>
+    [SuppressMessage("Usage", "VSTHRD002:Avoid problematic synchronous waits",
+        Justification = "A Moq matcher is a synchronous predicate, and the content it reads is in memory.")]
     public static string? AsString(this HttpContent? content) =>
         content?.ReadAsStringAsync().GetAwaiter().GetResult();
 }

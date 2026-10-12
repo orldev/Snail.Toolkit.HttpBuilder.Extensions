@@ -38,18 +38,14 @@ public sealed record Canned(HttpStatusCode StatusCode, string? Body)
 /// Bodies are read as the request passes through, because the content is disposed with
 /// the request message and cannot be read afterwards.
 /// </remarks>
-public sealed class RecordingHandler : HttpMessageHandler
+/// <param name="responses">
+/// Responses to return, in order. The last one repeats once they run out, so a test that
+/// only cares about the request can pass none at all.
+/// </param>
+public sealed class RecordingHandler(params Canned[] responses) : HttpMessageHandler
 {
-    private readonly Canned[] _responses;
+    private readonly Canned[] _responses = responses.Length > 0 ? responses : [Canned.Json(new { })];
     private int _sent;
-
-    /// <summary>Initializes a handler that replays the given responses in order.</summary>
-    /// <param name="responses">
-    /// Responses to return. The last one repeats once they run out, so a test that
-    /// only cares about the request can pass none at all.
-    /// </param>
-    public RecordingHandler(params Canned[] responses) =>
-        _responses = responses.Length > 0 ? responses : [Canned.Json(new { })];
 
     /// <summary>Gets the requests that were sent, in order.</summary>
     public List<HttpRequestMessage> Requests { get; } = [];

@@ -8,8 +8,8 @@ namespace Snail.Toolkit.HttpBuilder.Extensions.Tests.Extensions;
 
 public static class MoqExtensions
 {
-    public static ISetup<HttpMessageHandler, Task<HttpResponseMessage>> SetupSendAsync(this Mock<HttpMessageHandler> handler, 
-        HttpMethod requestMethod, 
+    public static ISetup<HttpMessageHandler, Task<HttpResponseMessage>> SetupSendAsync(this Mock<HttpMessageHandler> handler,
+        HttpMethod requestMethod,
         string requestUrl)
     {
         return handler.Protected().Setup<Task<HttpResponseMessage>>("SendAsync",
@@ -21,9 +21,9 @@ public static class MoqExtensions
             ItExpr.IsAny<CancellationToken>()
         );
     }
-    
-    public static ISetup<HttpMessageHandler, Task<HttpResponseMessage>> SetupSendAsync(this Mock<HttpMessageHandler> handler, 
-        HttpMethod requestMethod, 
+
+    public static ISetup<HttpMessageHandler, Task<HttpResponseMessage>> SetupSendAsync(this Mock<HttpMessageHandler> handler,
+        HttpMethod requestMethod,
         string requestUrl,
         HttpContent? requestContent,
         Dictionary<string, string> requestHeaders,
@@ -44,7 +44,7 @@ public static class MoqExtensions
         );
     }
 
-    public static IReturnsResult<HttpMessageHandler> ReturnsHttpResponseAsync(this ISetup<HttpMessageHandler, 
+    public static IReturnsResult<HttpMessageHandler> ReturnsHttpResponseAsync(this ISetup<HttpMessageHandler,
         Task<HttpResponseMessage>> moqSetup, object? responseBody, HttpStatusCode responseCode)
     {
         var serializedResponse = JsonSerializer.Serialize(responseBody);

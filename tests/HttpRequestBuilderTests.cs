@@ -48,6 +48,10 @@ public class HttpRequestBuilderTests
         Assert.False(second.Headers.Contains("X-Sample"));
     }
 
+    /// <remarks>
+    /// AbsoluteUri, not ToString(): the latter unescapes for display, so it would hide whether the space was actually
+    /// escaped on the wire.
+    /// </remarks>
     [Fact]
     public async Task Query_IsAppendedAndEscaped()
     {
@@ -59,8 +63,6 @@ public class HttpRequestBuilderTests
             ["page"] = "2"
         });
 
-        // AbsoluteUri, not ToString(): the latter unescapes for display, so it would
-        // hide whether the space was actually escaped on the wire.
         Assert.Equal(
             "https://www.example.com/search?q=a%20b%26c&page=2",
             handler.Single.RequestUri?.AbsoluteUri);
@@ -138,7 +140,7 @@ public class HttpRequestBuilderTests
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => client.Get("relative"));
 
-        Assert.Contains("BaseAddress", exception.Message);
+        Assert.Contains("BaseAddress", exception.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -158,7 +160,7 @@ public class HttpRequestBuilderTests
         Assert.Equal("{\"error\":\"key invalid\"}", exception.Body);
         Assert.Equal(HttpMethod.Get, exception.Method);
         Assert.Equal("https://www.example.com/thing", exception.RequestUri?.ToString());
-        Assert.Contains("key invalid", exception.Message);
+        Assert.Contains("key invalid", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -217,7 +219,7 @@ public class HttpRequestBuilderTests
             .AsJson(new Plain { Field = "value" })
             .SendAsync();
 
-        Assert.Contains("\"Field\"", handler.Bodies[0]);
+        Assert.Contains("\"Field\"", handler.Bodies[0], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -231,7 +233,7 @@ public class HttpRequestBuilderTests
             .AsJson(new Plain { Field = "value" }, pascalCase)
             .SendAsync();
 
-        Assert.Contains("\"Field\"", handler.Bodies[0]);
+        Assert.Contains("\"Field\"", handler.Bodies[0], StringComparison.Ordinal);
     }
 
     [Fact]
@@ -244,7 +246,7 @@ public class HttpRequestBuilderTests
             .AsJson(new Plain { Field = "value" })
             .SendAsync();
 
-        Assert.Contains("\"field\"", handler.Bodies[0]);
+        Assert.Contains("\"field\"", handler.Bodies[0], StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -284,7 +286,7 @@ public class HttpRequestBuilderTests
 
         Assert.NotNull(exception.Body);
         Assert.Equal(4097, exception.Body!.Length);
-        Assert.EndsWith("…", exception.Body);
+        Assert.EndsWith("…", exception.Body, StringComparison.Ordinal);
     }
 
     /// <summary>

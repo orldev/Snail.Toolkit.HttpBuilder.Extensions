@@ -22,6 +22,7 @@ public class HttpStreamingTests
         return (new SampleExample(client), handler);
     }
 
+    /// <remarks>Blank lines and JSON nulls are stream noise, not data.</remarks>
     [Fact]
     public async Task Ndjson_YieldsEachLineInOrder()
     {
@@ -37,7 +38,6 @@ public class HttpStreamingTests
 
         var chunks = await client.Stream("api/chat", new Request()).ToListAsync();
 
-        // Blank lines and JSON nulls are stream noise, not data.
         Assert.Equal(["one", "two", "three"], chunks.Select(c => c.Field));
     }
 
@@ -51,7 +51,7 @@ public class HttpStreamingTests
             client.Stream("api/chat", new Request()).ToListAsync().AsTask());
 
         Assert.Equal(HttpStatusCode.NotFound, exception.StatusCode);
-        Assert.Contains("model not found", exception.Body);
+        Assert.Contains("model not found", exception.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class HttpStreamingTests
             client.StreamArray("api/items").ToListAsync().AsTask());
 
         Assert.Equal(HttpStatusCode.ServiceUnavailable, exception.StatusCode);
-        Assert.Contains("overloaded", exception.Body);
+        Assert.Contains("overloaded", exception.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public class HttpStreamingTests
         {
             await foreach (var _ in client.Stream("api/chat", new Request(), cancellation.Token))
             {
-                cancellation.Cancel();
+                await cancellation.CancelAsync();
             }
         });
     }
@@ -185,7 +185,7 @@ public class HttpStreamingTests
             client.StreamSse("api/chat", new Request()).ToListAsync().AsTask());
 
         Assert.Equal(HttpStatusCode.TooManyRequests, exception.StatusCode);
-        Assert.Contains("quota exceeded", exception.Body);
+        Assert.Contains("quota exceeded", exception.Body, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,10 +1,15 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Snail.Sdk.Library">
 
     <PropertyGroup>
         <TargetFrameworks>net10.0</TargetFrameworks>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <!--
+      Not native yet: the terminals and AsJson serialize through reflection with caller-supplied JsonSerializerOptions
+      (IL2026/IL3050 x6, IL2090 x1). Native use needs JsonTypeInfo overloads beside them, which is new public API.
+    -->
+    <PropertyGroup>
+        <SnailNotNativeBecause>JSON through reflection on caller-supplied JsonSerializerOptions; the JsonTypeInfo overloads that would make it native are new public API</SnailNotNativeBecause>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -18,14 +23,6 @@
         <Copyright>Toolkit, 2023–2026</Copyright>
         <PackageProjectUrl>https://github.com/orldev/Snail.Toolkit.HttpBuilder.Extensions</PackageProjectUrl>
         <RepositoryUrl>https://github.com/orldev/Snail.Toolkit.HttpBuilder.Extensions</RepositoryUrl>
-        <RepositoryType>git</RepositoryType>
-    </PropertyGroup>
-    
-    <PropertyGroup>
-        <PublishRepositoryUrl>true</PublishRepositoryUrl>
-        <EmbedUntrackedSources>true</EmbedUntrackedSources>
-        <IncludeSymbols>true</IncludeSymbols>
-        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     </PropertyGroup>
 
     <ItemGroup>
