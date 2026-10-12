@@ -20,11 +20,11 @@ Thrown when a request completed but the response carried a failure status.
 
 | Member | Summary |
 | --- | --- |
-| `HttpBuilderException(HttpMethod method, Uri requestUri, HttpStatusCode statusCode, string reasonPhrase, string body)` | Thrown when a request completed but the response carried a failure status. |
+| `HttpBuilderException(HttpMethod method, Uri? requestUri, HttpStatusCode statusCode, string? reasonPhrase, string? body)` | Thrown when a request completed but the response carried a failure status. |
 | `HttpMethod Method { get; }` | Gets the method of the request that failed. |
-| `Uri RequestUri { get; }` | Gets the URI of the request that failed. |
-| `string Body { get; }` | Gets the response body, truncated. Null if it could not be read. |
-| `string ReasonPhrase { get; }` | Gets the reason phrase, if the server sent one. |
+| `Uri? RequestUri { get; }` | Gets the URI of the request that failed. |
+| `string? Body { get; }` | Gets the response body, truncated. Null if it could not be read. |
+| `string? ReasonPhrase { get; }` | Gets the reason phrase, if the server sent one. |
 
 ### class HttpRequestBuilder
 
@@ -35,14 +35,14 @@ One HTTP request under construction. Configuration methods return the same insta
 | `HttpRequestBuilder(HttpClient client, HttpMethod method, string path)` | Initializes a new instance of the `HttpRequestBuilder` class. |
 | `IHttpRequestBuilder Accept(string mediaType)` | Sets the `Accept` header. |
 | `IHttpRequestBuilder AsForm(IEnumerable<KeyValuePair<string, string>> fields)` | Sends the fields as an `application/x-www-form-urlencoded` body. |
-| `IHttpRequestBuilder AsJson<TValue>(TValue value, JsonSerializerOptions options = null)` | Sends the value as a JSON body, serialized at send time with `JsonOptions`. Options given here become the builder's options for both writing the body and reading the response. |
-| `IHttpRequestBuilder AsString(string value, Encoding encoding = null, string mediaType = null)` | Sends a string body. Defaults to UTF-8 and `text/plain`. |
-| `IHttpRequestBuilder Content(HttpContent content)` | Sends a body prepared by the caller. |
-| `IHttpRequestBuilder Header(string name, string value)` | Adds one header. Content headers such as `Content-Type` go to the body. |
+| `IHttpRequestBuilder AsJson<TValue>(TValue value, JsonSerializerOptions? options = null)` | Sends the value as a JSON body, serialized at send time with `JsonOptions`. Options given here become the builder's options for both writing the body and reading the response. |
+| `IHttpRequestBuilder AsString(string value, Encoding? encoding = null, string? mediaType = null)` | Sends a string body. Defaults to UTF-8 and `text/plain`. |
+| `IHttpRequestBuilder Content(HttpContent? content)` | Sends a body prepared by the caller. |
+| `IHttpRequestBuilder Header(string name, string? value)` | Adds one header. Content headers such as `Content-Type` go to the body. |
 | `IHttpRequestBuilder Headers(IEnumerable<KeyValuePair<string, string>> headers)` | Adds several headers, keeping any already set. |
-| `IHttpRequestBuilder Query(IEnumerable<KeyValuePair<string, string>> parameters)` | Appends several query parameters, skipping null values. |
-| `IHttpRequestBuilder Query(string name, string value)` | Appends an escaped query parameter. A null value is skipped, so an optional filter needs no branching at the call site; an empty string is a real value. |
-| `IHttpRequestBuilder WithJsonOptions(JsonSerializerOptions options)` | Sets `JsonOptions` for both the body and the response. |
+| `IHttpRequestBuilder Query(IEnumerable<KeyValuePair<string, string?>> parameters)` | Appends several query parameters, skipping null values. |
+| `IHttpRequestBuilder Query(string name, string? value)` | Appends an escaped query parameter. A null value is skipped, so an optional filter needs no branching at the call site; an empty string is a real value. |
+| `IHttpRequestBuilder WithJsonOptions(JsonSerializerOptions? options)` | Sets `JsonOptions` for both the body and the response. |
 | `IHttpRequestBuilder WithVersion(Version version)` | Sets the HTTP version. Unset, the client's `DefaultRequestVersion` applies. |
 | `IHttpRequestBuilder WithVersionPolicy(HttpVersionPolicy policy)` | Sets how strictly the HTTP version is applied. Unset, the client's `DefaultVersionPolicy` applies. |
 | `JsonSerializerOptions JsonOptions { get; }` | The serializer options the JSON body is written with and the response is read with. Web-style until `AsJson1` or `WithJsonOptions` sets them; the options given last win. |
@@ -60,7 +60,7 @@ The typed and streaming terminals of `IHttpRequestBuilder`.
 | `IAsyncEnumerable<TValue> SendAsJsonStreamAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and streams the elements of a successful JSON-array response, yielding each element as it arrives rather than waiting for the closing bracket. JSON `null` elements are skipped. |
 | `IAsyncEnumerable<TValue> SendAsNdjsonAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and streams a successful newline-delimited JSON response, yielding each line as it arrives rather than waiting for the body to end. Blank lines and JSON `null`s are skipped. |
 | `IAsyncEnumerable<TValue> SendAsSseAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and streams a successful `text/event-stream` response, yielding the parsed `data` payload of each server-sent event as it arrives. Comment lines and other fields are skipped, multi-line data is joined with newlines, JSON `null`s are skipped, and an OpenAI-style `[DONE]` sentinel ends the stream. |
-| `Task<TValue> SendAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and deserializes a successful JSON response. |
+| `Task<TValue?> SendAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and deserializes a successful JSON response. |
 | `Task<string> SendAsStringAsync(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and returns a successful response as text. |
 
 ### interface IHttpRequestBuilder
@@ -71,14 +71,14 @@ One HTTP request under construction. Configuration methods return the same insta
 | --- | --- |
 | `IHttpRequestBuilder Accept(string mediaType)` | Sets the `Accept` header. |
 | `IHttpRequestBuilder AsForm(IEnumerable<KeyValuePair<string, string>> fields)` | Sends the fields as an `application/x-www-form-urlencoded` body. |
-| `IHttpRequestBuilder AsJson<TValue>(TValue value, JsonSerializerOptions options = null)` | Sends the value as a JSON body, serialized at send time with `JsonOptions`. Options given here become the builder's options for both writing the body and reading the response. |
-| `IHttpRequestBuilder AsString(string value, Encoding encoding = null, string mediaType = null)` | Sends a string body. Defaults to UTF-8 and `text/plain`. |
-| `IHttpRequestBuilder Content(HttpContent content)` | Sends a body prepared by the caller. |
-| `IHttpRequestBuilder Header(string name, string value)` | Adds one header. Content headers such as `Content-Type` go to the body. |
+| `IHttpRequestBuilder AsJson<TValue>(TValue value, JsonSerializerOptions? options = null)` | Sends the value as a JSON body, serialized at send time with `JsonOptions`. Options given here become the builder's options for both writing the body and reading the response. |
+| `IHttpRequestBuilder AsString(string value, Encoding? encoding = null, string? mediaType = null)` | Sends a string body. Defaults to UTF-8 and `text/plain`. |
+| `IHttpRequestBuilder Content(HttpContent? content)` | Sends a body prepared by the caller. |
+| `IHttpRequestBuilder Header(string name, string? value)` | Adds one header. Content headers such as `Content-Type` go to the body. |
 | `IHttpRequestBuilder Headers(IEnumerable<KeyValuePair<string, string>> headers)` | Adds several headers, keeping any already set. |
-| `IHttpRequestBuilder Query(IEnumerable<KeyValuePair<string, string>> parameters)` | Appends several query parameters, skipping null values. |
-| `IHttpRequestBuilder Query(string name, string value)` | Appends an escaped query parameter. A null value is skipped, so an optional filter needs no branching at the call site; an empty string is a real value. |
-| `IHttpRequestBuilder WithJsonOptions(JsonSerializerOptions options)` | Sets `JsonOptions` for both the body and the response. |
+| `IHttpRequestBuilder Query(IEnumerable<KeyValuePair<string, string?>> parameters)` | Appends several query parameters, skipping null values. |
+| `IHttpRequestBuilder Query(string name, string? value)` | Appends an escaped query parameter. A null value is skipped, so an optional filter needs no branching at the call site; an empty string is a real value. |
+| `IHttpRequestBuilder WithJsonOptions(JsonSerializerOptions? options)` | Sets `JsonOptions` for both the body and the response. |
 | `IHttpRequestBuilder WithVersion(Version version)` | Sets the HTTP version. Unset, the client's `DefaultRequestVersion` applies. |
 | `IHttpRequestBuilder WithVersionPolicy(HttpVersionPolicy policy)` | Sets how strictly the HTTP version is applied. Unset, the client's `DefaultVersionPolicy` applies. |
 | `JsonSerializerOptions JsonOptions { get; }` | The serializer options the JSON body is written with and the response is read with. Web-style until `AsJson1` or `WithJsonOptions` sets them; the options given last win. |
@@ -92,10 +92,10 @@ One server-sent event with its payload parsed.
 
 | Member | Summary |
 | --- | --- |
-| `SseEvent(string Event, string Id, TValue Data)` | One server-sent event with its payload parsed. |
+| `SseEvent(string? Event, string? Id, TValue Data)` | One server-sent event with its payload parsed. |
 | `TValue Data { get; init; }` | The parsed `data` payload. |
-| `string Event { get; init; }` | The `event` field, or null when the server named none. |
-| `string Id { get; init; }` | The last `id` the stream declared, or null when it never did. |
+| `string? Event { get; init; }` | The `event` field, or null when the server named none. |
+| `string? Id { get; init; }` | The last `id` the stream declared, or null when it never did. |
 
 ### abstract class TypedHttpClientBase
 
