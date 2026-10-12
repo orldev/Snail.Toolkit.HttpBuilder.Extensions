@@ -70,6 +70,23 @@ public class HttpRequestBuilderTests
             handler.Single.RequestUri?.AbsoluteUri);
     }
 
+    /// <summary>A path that already carries a query is continued with an ampersand.</summary>
+    [Fact]
+    public async Task Query_PathWithAQuery_IsContinued()
+    {
+        var handler = new RecordingHandler();
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("https://www.example.com") };
+
+        using var response = await new HttpRequestBuilder(client, HttpMethod.Get, "search?fixed=1")
+            .Query("q", "a b")
+            .Query("ü", "=&?")
+            .SendAsync();
+
+        Assert.Equal(
+            "https://www.example.com/search?fixed=1&q=a%20b&%C3%BC=%3D%26%3F",
+            handler.Single.RequestUri?.AbsoluteUri);
+    }
+
     [Fact]
     public async Task Query_SkipsNullValues()
     {

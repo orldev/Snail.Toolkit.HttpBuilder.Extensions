@@ -109,9 +109,8 @@ public static class HttpRequestTerminals
     /// </summary>
     /// <exception cref="HttpBuilderException">The status was not a success.</exception>
     /// <remarks>
-    /// Lines are read to null, never through <see cref="StreamReader.EndOfStream"/>: on a
-    /// live network stream that property blocks the thread with a synchronous read while
-    /// it waits for the next chunk.
+    /// Lines are split on their UTF-8 bytes and each is parsed from them, without a string;
+    /// a line ends at <c>\r</c>, <c>\n</c> or both, as a text reader ends it.
     /// </remarks>
     [RequiresUnreferencedCode(ReflectionMessage)]
     [RequiresDynamicCode(ReflectionMessage)]
@@ -120,6 +119,7 @@ public static class HttpRequestTerminals
         ReadNdjsonAsync(
             builder,
             builder,
+            static (line, reading) => JsonSerializer.Deserialize<TValue>(line, reading.JsonOptions),
             static (line, reading) => JsonSerializer.Deserialize<TValue>(line, reading.JsonOptions),
             cancellationToken);
 
@@ -136,13 +136,18 @@ public static class HttpRequestTerminals
         ArgumentNullException.ThrowIfNull(typeInfo);
 
         return ReadNdjsonAsync(
-            builder, typeInfo, static (line, metadata) => JsonSerializer.Deserialize(line, metadata), cancellationToken);
+            builder,
+            typeInfo,
+            static (line, metadata) => JsonSerializer.Deserialize(line, metadata),
+            static (line, metadata) => JsonSerializer.Deserialize(line, metadata),
+            cancellationToken);
     }
 
     private static async IAsyncEnumerable<TValue> ReadNdjsonAsync<TValue, TShape>(
         IHttpRequestBuilder builder,
         TShape shape,
-        Func<string, TShape, TValue?> parse,
+        Func<ReadOnlySpan<byte>, TShape, TValue?> parseUtf8,
+        Func<string, TShape, TValue?> parseText,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         using var response = await builder
@@ -152,21 +157,12 @@ public static class HttpRequestTerminals
         await using var stream = await response.Content
             .ReadAsStreamAsync(cancellationToken)
             .ConfigureAwait(false);
-        using var reader = new StreamReader(stream, Encoding.UTF8);
 
-        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        await foreach (var value in NdjsonLines
+                           .ReadAsync(stream, shape, parseUtf8, parseText, cancellationToken)
+                           .ConfigureAwait(false))
         {
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
-
-            var value = parse(line, shape);
-
-            if (value is not null)
-            {
-                yield return value;
-            }
+            yield return value;
         }
     }
 

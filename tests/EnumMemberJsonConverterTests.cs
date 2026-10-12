@@ -26,6 +26,13 @@ public class EnumMemberJsonConverterTests
         Second
     }
 
+    [JsonConverter(typeof(EnumMemberJsonConverter<Wide>))]
+    public enum Wide
+    {
+        Short,
+        [EnumMember(Value = "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww")] Long
+    }
+
     [Fact]
     public void Write_PrefersTheEnumMemberValue() =>
         Assert.Equal("\"ONE_TIME\"", JsonSerializer.Serialize(Payment.OneTime));
@@ -66,6 +73,33 @@ public class EnumMemberJsonConverterTests
     /// An API switching its serializer to numbers must degrade like an unknown string,
     /// not explode mid-deserialize.
     /// </summary>
+    /// <summary>
+    /// What reaches the lookup is the unescaped text, whatever its length: a name short
+    /// enough is read without a string, a longer one as before, with the same answer.
+    /// </summary>
+    [Theory]
+    [InlineData("\"\\u004F\\u004E\\u0045_TIME\"", Payment.OneTime)]
+    [InlineData("\"rEcUrRiNg\"", Payment.Recurring)]
+    [InlineData("\"\"", Payment.OneTime)]
+    [InlineData("\"\\u0052\\u0045\\u0043\\u0055\\u0052\\u0052\\u0049\\u004E\\u0047\\u0052\\u0045\\u0043\\u0055\\u0052\\u0052\\u0049\\u004E\\u0047\\u0052\\u0045\\u0043\\u0055\\u0052\\u0052\\u0049\\u004E\\u0047\"", Payment.OneTime)]
+    public void Read_AnySpelling_ReadsTheMemberItNames(string json, Payment expected) =>
+        Assert.Equal(expected, JsonSerializer.Deserialize<Payment>(json));
+
+    [Fact]
+    public void Read_NameLongerThanTheStack_ReadsAsBefore()
+    {
+        var name = new string('w', 150);
+
+        Assert.Equal(Wide.Long, JsonSerializer.Deserialize<Wide>($"\"{name}\""));
+        Assert.Equal(Wide.Long, JsonSerializer.Deserialize<Wide>($"\"{name.ToUpperInvariant()}\""));
+        Assert.Equal(Wide.Short, JsonSerializer.Deserialize<Wide>($"\"{new string('x', 150)}\""));
+        Assert.Equal(Wide.Short, JsonSerializer.Deserialize<Wide>("\"short\""));
+    }
+
+    [Fact]
+    public void Read_NeitherStringNorNumber_Fails() =>
+        Assert.ThrowsAny<Exception>(() => JsonSerializer.Deserialize<Payment>("true"));
+
     [Fact]
     public void Read_AcceptsADefinedNumber() =>
         Assert.Equal(Payment.Recurring, JsonSerializer.Deserialize<Payment>("1"));

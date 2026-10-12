@@ -33,6 +33,10 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
 {
     private readonly Dictionary<TEnum, string> _enumToString = [];
     private readonly Dictionary<string, TEnum> _stringToEnum = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, TEnum>.AlternateLookup<ReadOnlySpan<char>> _spanToEnum;
+
+    /// <summary>The longest wire value, in UTF-8 bytes, read on the stack rather than into a string.</summary>
+    private const int StackNameLimit = 128;
 
     /// <summary>Builds the name maps from the enum's members.</summary>
     /// <remarks>
@@ -63,6 +67,8 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
                 _enumToString.TryAdd(value, name);
             }
         }
+
+        _spanToEnum = _stringToEnum.GetAlternateLookup<ReadOnlySpan<char>>();
     }
 
     /// <summary>Reads an enum from its string or numeric form, ignoring case.</summary>
@@ -71,11 +77,25 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
     /// or switching its serializer to numbers — does not break deserialization of
     /// everything else.
     /// </returns>
+    /// <remarks>
+    /// A string of up to <see cref="StackNameLimit"/> bytes is unescaped onto the stack and
+    /// looked up from there, so reading a value costs no string.
+    /// </remarks>
     public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType == JsonTokenType.Number)
         {
             return reader.TryGetInt64(out var number) ? AsDefined(number) : default;
+        }
+
+        var length = reader.HasValueSequence ? reader.ValueSequence.Length : reader.ValueSpan.Length;
+
+        if (reader.TokenType == JsonTokenType.String && length <= StackNameLimit)
+        {
+            Span<char> name = stackalloc char[StackNameLimit];
+            var written = reader.CopyString(name);
+
+            return written > 0 && _spanToEnum.TryGetValue(name[..written], out var member) ? member : default;
         }
 
         var value = reader.GetString();

@@ -368,10 +368,19 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
             return path;
         }
 
-        var query = string.Join(
-            '&',
-            _query.Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value)}"));
+        var uri = new StringBuilder(path);
+        var separator = path.Contains('?', StringComparison.Ordinal) ? '&' : '?';
 
-        return path.Contains('?', StringComparison.Ordinal) ? $"{path}&{query}" : $"{path}?{query}";
+        foreach (var (name, value) in _query)
+        {
+            uri.Append(separator)
+                .Append(Uri.EscapeDataString(name))
+                .Append('=')
+                .Append(Uri.EscapeDataString(value));
+
+            separator = '&';
+        }
+
+        return uri.ToString();
     }
 }
