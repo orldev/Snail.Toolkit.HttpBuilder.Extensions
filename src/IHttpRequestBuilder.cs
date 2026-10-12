@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 
@@ -34,6 +35,12 @@ public interface IHttpRequestBuilder
     /// <see cref="JsonOptions"/>. Options given here become the builder's options for
     /// both writing the body and reading the response.
     /// </summary>
+    /// <remarks>
+    /// Serializes by reflection. Trimmed and Native AOT apps use
+    /// <see cref="HttpRequestBodies.AsJson{TValue}(IHttpRequestBuilder, TValue, System.Text.Json.Serialization.Metadata.JsonTypeInfo{TValue})"/>.
+    /// </remarks>
+    [RequiresUnreferencedCode(HttpRequestTerminals.ReflectionMessage)]
+    [RequiresDynamicCode(HttpRequestTerminals.ReflectionMessage)]
     IHttpRequestBuilder AsJson<TValue>(TValue value, JsonSerializerOptions? options = null);
 
     /// <summary>Sends a string body. Defaults to UTF-8 and <c>text/plain</c>.</summary>

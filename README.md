@@ -39,6 +39,7 @@ await Get("v1/things/1").SendAsync<Thing>(ct);   // no body, no X-Trace
 | Method | |
 | --- | --- |
 | `AsJson(value, options?)` | JSON body, serialized at send time; `options`, when given, become the builder's JSON options |
+| `AsJson(value, typeInfo)` | JSON body written by source-generated metadata (`JsonTypeInfo<T>`): no reflection, trimmed and Native AOT apps |
 | `AsString(value, encoding?, mediaType?)` | UTF-8 and `text/plain` by default |
 | `AsForm(fields)` | `application/x-www-form-urlencoded` |
 | `Content(httpContent)` | a body you prepared yourself |
@@ -176,6 +177,37 @@ case, and a numeric wire value maps onto the defined member it names. Anything
 unrecognised reads as `default` rather than throwing, so an API adding a value — or
 switching its serializer to numbers — does not break deserialization of everything
 else.
+
+#### Trimming and Native AOT
+
+Every JSON member comes twice. The one that reads and writes with the builder's
+`JsonOptions` resolves types by reflection and is marked `[RequiresUnreferencedCode]`
+and `[RequiresDynamicCode]`, so a trimmed or native app is warned where it calls it.
+The one that takes a `JsonTypeInfo<T>` from a source-generated `JsonSerializerContext`
+uses no reflection:
+
+```csharp
+[JsonSerializable(typeof(ChatRequest))]
+[JsonSerializable(typeof(ChatChunk))]
+internal sealed partial class ChatJson : JsonSerializerContext;
+
+Post("/api/chat")
+    .AsJson(request, ChatJson.Default.ChatRequest)
+    .SendAsNdjsonAsync(ChatJson.Default.ChatChunk, ct);
+```
+
+| Reflection | Source-generated |
+| --- | --- |
+| `AsJson(value, options?)` | `AsJson(value, typeInfo)` |
+| `SendAsync<T>(ct)` | `SendAsync(typeInfo, ct)` |
+| `SendAsNdjsonAsync<T>(ct)` | `SendAsNdjsonAsync(typeInfo, ct)` |
+| `SendAsJsonStreamAsync<T>(ct)` | `SendAsJsonStreamAsync(typeInfo, ct)` |
+| `SendAsSseAsync<T>(ct)` | `SendAsSseAsync(typeInfo, ct)` |
+| `SendAsSseEventsAsync<T>(ct)` | `SendAsSseEventsAsync(typeInfo, ct)` |
+
+The metadata carries its own options: `JsonOptions` do not apply to it. Both read and
+write the same bytes when the context is generated with the same options.
+`EnumMemberJsonConverter<T>` keeps the members of `T` it reads through the trimmer.
 
 ## License
 

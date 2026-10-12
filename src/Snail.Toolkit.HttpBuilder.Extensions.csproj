@@ -4,14 +4,6 @@
         <TargetFrameworks>net10.0</TargetFrameworks>
     </PropertyGroup>
 
-    <!--
-      Not native yet: the terminals and AsJson serialize through reflection with caller-supplied JsonSerializerOptions
-      (IL2026/IL3050 x6, IL2090 x1). Native use needs JsonTypeInfo overloads beside them, which is new public API.
-    -->
-    <PropertyGroup>
-        <SnailNotNativeBecause>JSON through reflection on caller-supplied JsonSerializerOptions; the JsonTypeInfo overloads that would make it native are new public API</SnailNotNativeBecause>
-    </PropertyGroup>
-
     <PropertyGroup>
         <PackageId>Snail.Toolkit.HttpBuilder.Extensions</PackageId>
         <Title>Snail.Toolkit.HttpBuilder.Extensions</Title>

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -42,7 +43,19 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// Web-style by default, the same convention
     /// <see cref="HttpClientJsonExtensions"/> uses.
     /// </remarks>
-    public JsonSerializerOptions JsonOptions => _jsonOptions ?? JsonSerializerOptions.Web;
+    public JsonSerializerOptions JsonOptions => _jsonOptions ?? WebOptions;
+
+    /// <summary>The web-style defaults, the options the reflection-based members read and write with.</summary>
+    /// <remarks>
+    /// <see cref="JsonSerializerOptions.Web"/> is marked for reflection because options are what
+    /// reflection-based serialization runs with; handing them out serializes nothing, and every member
+    /// that serializes with them carries the same marks.
+    /// </remarks>
+    [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode",
+        Justification = "Only members marked RequiresUnreferencedCode serialize with these options.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode",
+        Justification = "Only members marked RequiresDynamicCode serialize with these options.")]
+    private static JsonSerializerOptions WebOptions => JsonSerializerOptions.Web;
 
     /// <inheritdoc/>
     /// <remarks>
@@ -50,6 +63,8 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// <see cref="JsonOptions"/>, so the options apply no matter which order they and
     /// the body were given in.
     /// </remarks>
+    [RequiresUnreferencedCode(HttpRequestTerminals.ReflectionMessage)]
+    [RequiresDynamicCode(HttpRequestTerminals.ReflectionMessage)]
     public IHttpRequestBuilder AsJson<TValue>(TValue value, JsonSerializerOptions? options = null)
     {
         if (options is not null)
@@ -215,9 +230,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     {
         var message = new HttpRequestMessage(_method, CreateRequestUri())
         {
-            Content = _hasJsonBody
-                ? JsonContent.Create(_jsonBody, _jsonBodyType!, mediaType: null, JsonOptions)
-                : _content,
+            Content = _hasJsonBody ? CreateJsonBody() : _content,
             Version = _version ?? _client.DefaultRequestVersion,
             VersionPolicy = _versionPolicy ?? _client.DefaultVersionPolicy
         };
@@ -238,6 +251,18 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
 
         return message;
     }
+
+    /// <summary>Writes the body <see cref="AsJson{TValue}"/> was given, with the options in force at send time.</summary>
+    /// <remarks>
+    /// Only <see cref="AsJson{TValue}"/> sets a JSON body, and it carries the reflection marks, so its
+    /// caller was told; the body is written here, at send time, so that options given after it still apply.
+    /// </remarks>
+    [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode",
+        Justification = "A JSON body is only set by AsJson, which is marked RequiresUnreferencedCode.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode",
+        Justification = "A JSON body is only set by AsJson, which is marked RequiresDynamicCode.")]
+    private JsonContent CreateJsonBody() =>
+        JsonContent.Create(_jsonBody, _jsonBodyType!, mediaType: null, JsonOptions);
 
     /// <summary>
     /// Marks the one send this builder describes, so a second send fails loudly instead

@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="benchmarks/Snail.Toolkit.HttpBuilder.Extensions.Benchmarks.csproj" />
   <Project Path="src/Snail.Toolkit.HttpBuilder.Extensions.csproj" />
+  <Project Path="tests/Snail.Toolkit.HttpBuilder.Extensions.NativeProbe/Snail.Toolkit.HttpBuilder.Extensions.NativeProbe.csproj" />
   <Project Path="tests/Snail.Toolkit.HttpBuilder.Extensions.Tests.csproj" />
 </Solution>

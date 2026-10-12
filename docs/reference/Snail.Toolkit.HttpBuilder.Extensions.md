@@ -26,6 +26,14 @@ Thrown when a request completed but the response carried a failure status.
 | `string? Body { get; }` | Gets the response body, truncated. Null if it could not be read. |
 | `string? ReasonPhrase { get; }` | Gets the reason phrase, if the server sent one. |
 
+### static class HttpRequestBodies
+
+Request bodies described by source-generated JSON metadata, beside the reflection-based `AsJson(value, options)` of `IHttpRequestBuilder`.
+
+| Member | Summary |
+| --- | --- |
+| `IHttpRequestBuilder AsJson<TValue>(this IHttpRequestBuilder builder, TValue value, JsonTypeInfo<TValue> typeInfo)` | Sends the value as a JSON body written by `typeInfo`, which carries its own options: no reflection, so it works trimmed and under Native AOT. |
+
 ### class HttpRequestBuilder
 
 One HTTP request under construction. Configuration methods return the same instance so calls chain; the send members are the terminal operations.
@@ -57,10 +65,15 @@ The typed and streaming terminals of `IHttpRequestBuilder`.
 | Member | Summary |
 | --- | --- |
 | `IAsyncEnumerable<SseEvent<TValue>> SendAsSseEventsAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and streams a successful `text/event-stream` response as whole events, keeping each event's name and the stream's last id alongside the parsed `data` payload. JSON `null`s are skipped, and an OpenAI-style `[DONE]` sentinel ends the stream. |
+| `IAsyncEnumerable<SseEvent<TValue>> SendAsSseEventsAsync<TValue>(this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken = default)` | Sends the request and streams a successful `text/event-stream` response as whole events, each `data` payload read with the source-generated metadata `typeInfo` carries. |
 | `IAsyncEnumerable<TValue> SendAsJsonStreamAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and streams the elements of a successful JSON-array response, yielding each element as it arrives rather than waiting for the closing bracket. JSON `null` elements are skipped. |
+| `IAsyncEnumerable<TValue> SendAsJsonStreamAsync<TValue>(this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken = default)` | Sends the request and streams the elements of a successful JSON-array response, each read with the source-generated metadata `typeInfo` carries. |
 | `IAsyncEnumerable<TValue> SendAsNdjsonAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and streams a successful newline-delimited JSON response, yielding each line as it arrives rather than waiting for the body to end. Blank lines and JSON `null`s are skipped. |
+| `IAsyncEnumerable<TValue> SendAsNdjsonAsync<TValue>(this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken = default)` | Sends the request and streams a successful newline-delimited JSON response, each line read with the source-generated metadata `typeInfo` carries. |
 | `IAsyncEnumerable<TValue> SendAsSseAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and streams a successful `text/event-stream` response, yielding the parsed `data` payload of each server-sent event as it arrives. Comment lines and other fields are skipped, multi-line data is joined with newlines, JSON `null`s are skipped, and an OpenAI-style `[DONE]` sentinel ends the stream. |
+| `IAsyncEnumerable<TValue> SendAsSseAsync<TValue>(this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken = default)` | Sends the request and streams a successful `text/event-stream` response, yielding the `data` payload of each server-sent event read with the source-generated metadata `typeInfo` carries. |
 | `Task<TValue?> SendAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and deserializes a successful JSON response. |
+| `Task<TValue?> SendAsync<TValue>(this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken = default)` | Sends the request and deserializes a successful JSON response with the source-generated metadata `typeInfo` carries, so no reflection is involved. |
 | `Task<string> SendAsStringAsync(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and returns a successful response as text. |
 
 ### interface IHttpRequestBuilder

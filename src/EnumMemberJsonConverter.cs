@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -13,7 +15,8 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// The built-in <see cref="JsonStringEnumConverter"/> ignores
 /// <see cref="EnumMemberAttribute"/>, so it cannot express <c>ONE_TIME</c> for a member
 /// called <c>OneTime</c>. Reading accepts either spelling, ignores case, and takes a
-/// number too; writing prefers the attribute.
+/// number too; writing prefers the attribute. The enum's public fields — its members — are
+/// read once, and kept by the trimmer for it.
 /// </remarks>
 /// <example>
 /// <code>
@@ -25,7 +28,8 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// }
 /// </code>
 /// </example>
-public sealed class EnumMemberJsonConverter<TEnum> : JsonConverter<TEnum> where TEnum : struct, Enum
+public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TEnum>
+    : JsonConverter<TEnum> where TEnum : struct, Enum
 {
     private readonly Dictionary<TEnum, string> _enumToString = [];
     private readonly Dictionary<string, TEnum> _stringToEnum = new(StringComparer.OrdinalIgnoreCase);
@@ -43,10 +47,9 @@ public sealed class EnumMemberJsonConverter<TEnum> : JsonConverter<TEnum> where 
         foreach (var value in Enum.GetValues<TEnum>())
         {
             var name = value.ToString();
-            var attribute = type.GetMember(name)[0]
-                .GetCustomAttributes(typeof(EnumMemberAttribute), false)
-                .Cast<EnumMemberAttribute>()
-                .FirstOrDefault();
+            var attribute = type
+                .GetField(name, BindingFlags.Public | BindingFlags.Static)?
+                .GetCustomAttribute<EnumMemberAttribute>(inherit: false);
 
             _stringToEnum.TryAdd(name, value);
 

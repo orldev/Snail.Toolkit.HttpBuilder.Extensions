@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using BenchmarkDotNet.Attributes;
 
 namespace Snail.Toolkit.HttpBuilder.Extensions.Benchmarks;
@@ -84,6 +86,21 @@ public class Exchanges
         return (int)response.StatusCode;
     }
 
+    /// <summary>Sends the same request with its body written by source-generated metadata.</summary>
+    [Benchmark]
+    public async Task<int> RequestTyped()
+    {
+        using var response = await new HttpRequestBuilder(_empty, HttpMethod.Post, "orders")
+            .Query("tenant", "eu-1")
+            .Query("page", "2")
+            .Header("X-Request-Id", "bench")
+            .AsJson(_order, ExchangeJson.Default.Item)
+            .SendAsync()
+            .ConfigureAwait(false);
+
+        return (int)response.StatusCode;
+    }
+
     /// <summary>Reads a buffered response of 200 items into an array.</summary>
     [Benchmark]
     public async Task<int> Document()
@@ -106,6 +123,17 @@ public class Exchanges
         return items?.Length ?? 0;
     }
 
+    /// <summary>Reads the 6000 items with source-generated metadata.</summary>
+    [Benchmark]
+    public async Task<int> LargeDocumentTyped()
+    {
+        var items = await new HttpRequestBuilder(_largeDocument, HttpMethod.Get, "items")
+            .SendAsync(ExchangeJson.Default.ItemArray)
+            .ConfigureAwait(false);
+
+        return items?.Length ?? 0;
+    }
+
     /// <summary>Streams 200 items, one per line.</summary>
     [Benchmark]
     public async Task<int> Lines()
@@ -114,6 +142,20 @@ public class Exchanges
 
         await foreach (var _ in new HttpRequestBuilder(_lines, HttpMethod.Get, "items")
                            .SendAsNdjsonAsync<Item>()
+                           .ConfigureAwait(false))
+            read++;
+
+        return read;
+    }
+
+    /// <summary>Streams the 200 lines with source-generated metadata.</summary>
+    [Benchmark]
+    public async Task<int> LinesTyped()
+    {
+        var read = 0;
+
+        await foreach (var _ in new HttpRequestBuilder(_lines, HttpMethod.Get, "items")
+                           .SendAsNdjsonAsync(ExchangeJson.Default.Item)
                            .ConfigureAwait(false))
             read++;
 
@@ -134,6 +176,20 @@ public class Exchanges
         return read;
     }
 
+    /// <summary>Streams the 200 events with source-generated metadata.</summary>
+    [Benchmark]
+    public async Task<int> EventsTyped()
+    {
+        var read = 0;
+
+        await foreach (var _ in new HttpRequestBuilder(_events, HttpMethod.Get, "items")
+                           .SendAsSseEventsAsync(ExchangeJson.Default.Item)
+                           .ConfigureAwait(false))
+            read++;
+
+        return read;
+    }
+
     private async Task VerifyAsync(Item[] items)
     {
         var expected = JsonSerializer.Serialize(items, JsonSerializerOptions.Web);
@@ -144,18 +200,31 @@ public class Exchanges
         var lines = await new HttpRequestBuilder(_lines, HttpMethod.Get, "items").SendAsNdjsonAsync<Item>().ToArrayAsync().ConfigureAwait(false);
         var events = await new HttpRequestBuilder(_events, HttpMethod.Get, "items").SendAsSseEventsAsync<Item>().ToArrayAsync().ConfigureAwait(false);
 
+        var largeTyped = await new HttpRequestBuilder(_largeDocument, HttpMethod.Get, "items").SendAsync(ExchangeJson.Default.ItemArray).ConfigureAwait(false);
+        var linesTyped = await new HttpRequestBuilder(_lines, HttpMethod.Get, "items").SendAsNdjsonAsync(ExchangeJson.Default.Item).ToArrayAsync().ConfigureAwait(false);
+        var eventsTyped = await new HttpRequestBuilder(_events, HttpMethod.Get, "items").SendAsSseEventsAsync(ExchangeJson.Default.Item).ToArrayAsync().ConfigureAwait(false);
+
         string[] read =
         [
             JsonSerializer.Serialize(document, JsonSerializerOptions.Web),
             JsonSerializer.Serialize(lines, JsonSerializerOptions.Web),
-            JsonSerializer.Serialize(events.Select(received => received.Data), JsonSerializerOptions.Web)
+            JsonSerializer.Serialize(events.Select(received => received.Data), JsonSerializerOptions.Web),
+            JsonSerializer.Serialize(linesTyped, JsonSerializerOptions.Web),
+            JsonSerializer.Serialize(eventsTyped.Select(received => received.Data), JsonSerializerOptions.Web)
         ];
+
+        using var reflectedBody = JsonContent.Create(_order, typeof(Item), mediaType: null, JsonSerializerOptions.Web);
+        using var generatedBody = JsonContent.Create(_order, ExchangeJson.Default.Item);
+        var isSameBody = await reflectedBody.ReadAsStringAsync().ConfigureAwait(false)
+            == await generatedBody.ReadAsStringAsync().ConfigureAwait(false);
 
         var isNamed = events.All(received => received is { Event: "item" } && received.Id == received.Data.Id.ToString(CultureInfo.InvariantCulture));
 
         if (Array.Exists(read, text => text != expected)
             || JsonSerializer.Serialize(largeDocument, JsonSerializerOptions.Web) != largeExpected
-            || !isNamed)
+            || JsonSerializer.Serialize(largeTyped, JsonSerializerOptions.Web) != largeExpected
+            || !isNamed
+            || !isSameBody)
         {
             throw new InvalidOperationException("A read path did not give back the items it was sent.");
         }
@@ -172,6 +241,12 @@ public class Exchanges
         return content;
     }
 }
+
+/// <summary>Source-generated metadata for the items, with the builder's default web options.</summary>
+[JsonSourceGenerationOptions(JsonSerializerDefaults.Web)]
+[JsonSerializable(typeof(Item))]
+[JsonSerializable(typeof(Item[]))]
+public sealed partial class ExchangeJson : JsonSerializerContext;
 
 /// <summary>An item of a catalogue, the shape a typical API answers with.</summary>
 public sealed record Item(int Id, string Name, decimal Price, string[] Tags)
