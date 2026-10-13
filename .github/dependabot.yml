@@ -1,0 +1,22 @@
+# Dependabot keeps the actions the workflows call and the packages Directory.Packages.props pins current: once a week,
+# the actions in one pull request, the packages' minor and patch updates in another, each major update in its own. The
+# shared workflows are called by their major tag (@v1): Dependabot proposes the next major when Snail.Sdk releases one.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      packages:
+        patterns: ['*']
+        update-types: [minor, patch]
