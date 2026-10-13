@@ -1,4 +1,4 @@
-## Snail.Toolkit.HttpBuilder.Extensions
+# Snail.Toolkit.HttpBuilder.Extensions
 
 Extension for the framework `HttpClient`. Derive a typed client from
 `TypedHttpClientBase`, start a request with a verb, configure it fluently, send it.
