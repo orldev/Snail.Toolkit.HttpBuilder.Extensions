@@ -56,6 +56,7 @@ await Get("v1/things/1").SendAsync<Thing>(ct);   // no body, no X-Trace
 | `SendAsync(ct)` | the raw `HttpResponseMessage`, whatever its status — **you dispose it** |
 | `SendCheckedAsync(option, ct)` | the raw response with the status verified — a failure throws |
 | `SendAsync<T>(ct)` | deserializes JSON; `default` when the response has no content |
+| `SendStreamedAsync<T>(ct)` | deserializes JSON as the body arrives, never holding all of it — for large bodies; the client's `Timeout` still covers the whole read |
 | `SendAsStringAsync(ct)` | the body as text |
 | `SendAsNdjsonAsync<T>(ct)` | streams newline-delimited JSON, one `T` per line as it arrives |
 | `SendAsJsonStreamAsync<T>(ct)` | streams the elements of a JSON array as they arrive |
@@ -200,6 +201,7 @@ Post("/api/chat")
 | --- | --- |
 | `AsJson(value, options?)` | `AsJson(value, typeInfo)` |
 | `SendAsync<T>(ct)` | `SendAsync(typeInfo, ct)` |
+| `SendStreamedAsync<T>(ct)` | `SendStreamedAsync(typeInfo, ct)` |
 | `SendAsNdjsonAsync<T>(ct)` | `SendAsNdjsonAsync(typeInfo, ct)` |
 | `SendAsJsonStreamAsync<T>(ct)` | `SendAsJsonStreamAsync(typeInfo, ct)` |
 | `SendAsSseAsync<T>(ct)` | `SendAsSseAsync(typeInfo, ct)` |

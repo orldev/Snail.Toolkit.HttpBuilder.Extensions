@@ -74,6 +74,8 @@ The typed and streaming terminals of `IHttpRequestBuilder`.
 | `IAsyncEnumerable<TValue> SendAsSseAsync<TValue>(this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken)` | Sends the request and streams a successful `text/event-stream` response, yielding the `data` payload of each server-sent event read with the source-generated metadata `typeInfo` carries. |
 | `Task<TValue?> SendAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and deserializes a successful JSON response. |
 | `Task<TValue?> SendAsync<TValue>(this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken)` | Sends the request and deserializes a successful JSON response with the source-generated metadata `typeInfo` carries, so no reflection is involved. |
+| `Task<TValue?> SendStreamedAsync<TValue>(this IHttpRequestBuilder builder, CancellationToken cancellationToken)` | Sends the request and deserializes a successful JSON response as it arrives, without holding the whole body first: for large bodies. |
+| `Task<TValue?> SendStreamedAsync<TValue>(this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken)` | Sends the request and deserializes a successful JSON response as it arrives, with the source-generated metadata `typeInfo` carries. |
 | `Task<string> SendAsStringAsync(this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)` | Sends the request and returns a successful response as text. |
 
 ### interface IHttpRequestBuilder

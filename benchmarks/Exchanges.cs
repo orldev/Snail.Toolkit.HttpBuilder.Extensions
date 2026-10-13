@@ -11,7 +11,8 @@ namespace Snail.Toolkit.HttpBuilder.Extensions.Benchmarks;
 /// <summary>
 /// Measures the per-request paths every client built on this library takes: a request assembled with a query and a
 /// JSON body, a buffered typed response of 200 items and one of 6000 (some 600 KB, a large list endpoint), a
-/// newline-delimited JSON stream read item by item, and a server-sent event stream read event by event.
+/// newline-delimited JSON stream read item by item, and a server-sent event stream read event by event. The two
+/// documents are read buffered and as they arrive.
 /// </summary>
 /// <remarks>
 /// The handler answers from memory, so the numbers are the library's own work. Read the Allocated column: the times
@@ -134,6 +135,39 @@ public class Exchanges
         return items?.Length ?? 0;
     }
 
+    /// <summary>Reads the 200 items as the body arrives, without buffering it.</summary>
+    [Benchmark]
+    public async Task<int> DocumentStreamed()
+    {
+        var items = await new HttpRequestBuilder(_document, HttpMethod.Get, "items")
+            .SendStreamedAsync<Item[]>(CancellationToken.None)
+            .ConfigureAwait(false);
+
+        return items?.Length ?? 0;
+    }
+
+    /// <summary>Reads the 6000 items as the body arrives, without buffering it.</summary>
+    [Benchmark]
+    public async Task<int> LargeDocumentStreamed()
+    {
+        var items = await new HttpRequestBuilder(_largeDocument, HttpMethod.Get, "items")
+            .SendStreamedAsync<Item[]>(CancellationToken.None)
+            .ConfigureAwait(false);
+
+        return items?.Length ?? 0;
+    }
+
+    /// <summary>Reads the 6000 items as the body arrives, with source-generated metadata.</summary>
+    [Benchmark]
+    public async Task<int> LargeDocumentStreamedTyped()
+    {
+        var items = await new HttpRequestBuilder(_largeDocument, HttpMethod.Get, "items")
+            .SendStreamedAsync(ExchangeJson.Default.ItemArray, CancellationToken.None)
+            .ConfigureAwait(false);
+
+        return items?.Length ?? 0;
+    }
+
     /// <summary>Streams 200 items, one per line.</summary>
     [Benchmark]
     public async Task<int> Lines()
@@ -202,11 +236,15 @@ public class Exchanges
 
         var largeTyped = await new HttpRequestBuilder(_largeDocument, HttpMethod.Get, "items").SendAsync(ExchangeJson.Default.ItemArray, CancellationToken.None).ConfigureAwait(false);
         var linesTyped = await new HttpRequestBuilder(_lines, HttpMethod.Get, "items").SendAsNdjsonAsync(ExchangeJson.Default.Item, CancellationToken.None).ToArrayAsync().ConfigureAwait(false);
+        var documentStreamed = await new HttpRequestBuilder(_document, HttpMethod.Get, "items").SendStreamedAsync<Item[]>(CancellationToken.None).ConfigureAwait(false);
+        var largeStreamed = await new HttpRequestBuilder(_largeDocument, HttpMethod.Get, "items").SendStreamedAsync<Item[]>(CancellationToken.None).ConfigureAwait(false);
+        var largeStreamedTyped = await new HttpRequestBuilder(_largeDocument, HttpMethod.Get, "items").SendStreamedAsync(ExchangeJson.Default.ItemArray, CancellationToken.None).ConfigureAwait(false);
         var eventsTyped = await new HttpRequestBuilder(_events, HttpMethod.Get, "items").SendAsSseEventsAsync(ExchangeJson.Default.Item, CancellationToken.None).ToArrayAsync().ConfigureAwait(false);
 
         string[] read =
         [
             JsonSerializer.Serialize(document, JsonSerializerOptions.Web),
+            JsonSerializer.Serialize(documentStreamed, JsonSerializerOptions.Web),
             JsonSerializer.Serialize(lines, JsonSerializerOptions.Web),
             JsonSerializer.Serialize(events.Select(received => received.Data), JsonSerializerOptions.Web),
             JsonSerializer.Serialize(linesTyped, JsonSerializerOptions.Web),
@@ -223,6 +261,8 @@ public class Exchanges
         if (Array.Exists(read, text => text != expected)
             || JsonSerializer.Serialize(largeDocument, JsonSerializerOptions.Web) != largeExpected
             || JsonSerializer.Serialize(largeTyped, JsonSerializerOptions.Web) != largeExpected
+            || JsonSerializer.Serialize(largeStreamed, JsonSerializerOptions.Web) != largeExpected
+            || JsonSerializer.Serialize(largeStreamedTyped, JsonSerializerOptions.Web) != largeExpected
             || !isNamed
             || !isSameBody)
         {

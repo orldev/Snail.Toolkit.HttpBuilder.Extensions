@@ -10,6 +10,9 @@ using var client = new HttpClient(new Answers()) { BaseAddress = new Uri("http:/
 var echoed = await new HttpRequestBuilder(client, HttpMethod.Post, "echo")
     .AsJson(new Order(7, Size.ExtraLarge), ProbeJson.Default.Order)
     .SendAsync(ProbeJson.Default.Order, CancellationToken.None);
+var streamed = await new HttpRequestBuilder(client, HttpMethod.Post, "echo")
+    .AsJson(new Order(8, Size.Small), ProbeJson.Default.Order)
+    .SendStreamedAsync(ProbeJson.Default.Order, CancellationToken.None);
 var lines = await new HttpRequestBuilder(client, HttpMethod.Get, "lines")
     .SendAsNdjsonAsync(ProbeJson.Default.Order, CancellationToken.None)
     .ToListAsync();
@@ -22,7 +25,9 @@ var events = await new HttpRequestBuilder(client, HttpMethod.Get, "events")
 var empty = await new HttpRequestBuilder(client, HttpMethod.Get, "empty")
     .SendAsync(ProbeJson.Default.Order, CancellationToken.None);
 
-var isEchoed = echoed is { Id: 7, Size: Size.ExtraLarge } && Answers.Echoed == """{"id":7,"size":"XL"}""";
+var isEchoed = echoed is { Id: 7, Size: Size.ExtraLarge }
+    && streamed is { Id: 8, Size: Size.Small }
+    && Answers.Echoed == """{"id":8,"size":"S"}""";
 var isStreamed = lines.Count == 2 && lines[1] is { Id: 2, Size: Size.Small }
     && elements.Count == 2 && elements[0] is { Id: 1, Size: Size.ExtraLarge };
 var isEvented = events.Count == 1 && events[0] is { Event: "order", Id: "9", Data.Size: Size.Small };

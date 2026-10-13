@@ -45,6 +45,13 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// </remarks>
     public JsonSerializerOptions JsonOptions => _jsonOptions ?? WebOptions;
 
+    /// <summary>The timeout of the client this request is sent through.</summary>
+    /// <remarks>
+    /// <see cref="HttpClient.Timeout"/> covers a response read to its end only while the client reads it; a
+    /// terminal that reads the body itself holds the rest of the request to it.
+    /// </remarks>
+    internal TimeSpan ClientTimeout => _client.Timeout;
+
     /// <summary>The web-style defaults, the options the reflection-based members read and write with.</summary>
     /// <remarks>
     /// <see cref="JsonSerializerOptions.Web"/> is marked for reflection because options are what
