@@ -32,6 +32,7 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
     : JsonConverter<TEnum> where TEnum : struct, Enum
 {
     private readonly Dictionary<TEnum, string> _enumToString = [];
+    private readonly Dictionary<TEnum, JsonEncodedText> _enumToEncoded = [];
     private readonly Dictionary<string, TEnum> _stringToEnum = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, TEnum>.AlternateLookup<ReadOnlySpan<char>> _spanToEnum;
 
@@ -66,6 +67,11 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
             {
                 _enumToString.TryAdd(value, name);
             }
+        }
+
+        foreach (var (value, name) in _enumToString)
+        {
+            _enumToEncoded.Add(value, JsonEncodedText.Encode(name));
         }
 
         _spanToEnum = _stringToEnum.GetAlternateLookup<ReadOnlySpan<char>>();
@@ -114,10 +120,19 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
     /// <summary>Writes an enum as the string the API expects.</summary>
     /// <remarks>
     /// A cast integer or combined flags has no mapping; its own representation beats a
-    /// <see cref="KeyNotFoundException"/> mid-serialize.
+    /// <see cref="KeyNotFoundException"/> mid-serialize. A writer with the default encoder
+    /// gets the name encoded once, up front, so writing it neither transcodes nor escapes;
+    /// one with an encoder of its own escapes the name as it always did.
     /// </remarks>
     public override void Write(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options)
     {
+        if (writer.Options.Encoder is null && _enumToEncoded.TryGetValue(value, out var encoded))
+        {
+            writer.WriteStringValue(encoded);
+
+            return;
+        }
+
         writer.WriteStringValue(
             _enumToString.TryGetValue(value, out var name) ? name : value.ToString());
     }

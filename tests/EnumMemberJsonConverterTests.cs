@@ -1,6 +1,8 @@
 using System.Runtime.Serialization;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Unicode;
 
 namespace Snail.Toolkit.HttpBuilder.Extensions.Tests;
 
@@ -31,6 +33,41 @@ public class EnumMemberJsonConverterTests
     {
         Short,
         [EnumMember(Value = "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww")] Long
+    }
+
+    [JsonConverter(typeof(EnumMemberJsonConverter<Escaped>))]
+    public enum Escaped
+    {
+        [EnumMember(Value = "a+b")] Plus,
+        [EnumMember(Value = "<tag> & 'quote'")] Markup,
+        [EnumMember(Value = "caf\u00E9 \u65E5\u672C")] NonAscii,
+        [EnumMember(Value = "say \"hi\"\n\\")] Control,
+        Plain
+    }
+
+    public static TheoryData<string> Encoders => ["default", "web", "relaxed", "none"];
+
+    /// <summary>
+    /// A name is written exactly as the writer writes the same string, whatever needs
+    /// escaping in it, and whichever encoder the options carry.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Encoders))]
+    public void Write_AnyEncoder_WritesTheNameAsTheWriterWritesItsString(string encoder)
+    {
+        var options = encoder switch
+        {
+            "web" => new JsonSerializerOptions(JsonSerializerDefaults.Web),
+            "relaxed" => new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping },
+            "none" => new JsonSerializerOptions { Encoder = JavaScriptEncoder.Create(UnicodeRanges.None) },
+            _ => new JsonSerializerOptions()
+        };
+
+        string[] names = ["a+b", "<tag> & 'quote'", "caf\u00E9 \u65E5\u672C", "say \"hi\"\n\\", "Plain"];
+
+        Assert.Equal(
+            JsonSerializer.Serialize(names, options),
+            JsonSerializer.Serialize(Enum.GetValues<Escaped>(), options));
     }
 
     [Fact]

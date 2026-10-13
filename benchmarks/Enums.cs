@@ -17,7 +17,10 @@ public class Enums
     private Payment[] _rows = [];
     private byte[] _document = [];
 
-    /// <summary>Makes the rows, every spelling the converter reads among them, and their JSON.</summary>
+    /// <summary>
+    /// Makes the rows, every spelling the converter reads among them, and their JSON; checks each spelling reads as the
+    /// member it names and each row is written with its member's wire name.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -32,6 +35,14 @@ public class Enums
 
         if (!read.Select(row => row.Type).SequenceEqual(Enumerable.Range(0, Count).Select(index => (PaymentType)(index % 5 % 3))))
             throw new InvalidOperationException("The rows did not read back as the members their spellings name.");
+
+        string[] names = ["ONE_TIME", "RECURRING", "Unscheduled"];
+        var written = JsonSerializer.SerializeToUtf8Bytes(_rows, JsonSerializerOptions.Web);
+        var expected = JsonSerializer.SerializeToUtf8Bytes(
+            _rows.Select(row => new { id = row.Id, type = names[(int)row.Type] }), JsonSerializerOptions.Web);
+
+        if (!written.AsSpan().SequenceEqual(expected))
+            throw new InvalidOperationException("The rows were not written with the names their members carry.");
     }
 
     /// <summary>Reads the thousand rows.</summary>
