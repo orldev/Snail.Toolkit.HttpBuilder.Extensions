@@ -54,7 +54,7 @@ public class TypedJsonTests
         using var client = Client(new RecordingHandler(Canned.Text(body, HttpStatusCode.OK)));
 
         var reflected = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsync<Response>();
-        var generated = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsync(TestJson.Default.Response);
+        var generated = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsync(TestJson.Default.Response, CancellationToken.None);
 
         Assert.Equal(reflected?.Field, generated?.Field);
     }
@@ -73,7 +73,7 @@ public class TypedJsonTests
             HttpStatusCode.OK)));
 
         var reflected = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsNdjsonAsync<Response>().ToListAsync();
-        var generated = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsNdjsonAsync(TestJson.Default.Response).ToListAsync();
+        var generated = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsNdjsonAsync(TestJson.Default.Response, CancellationToken.None).ToListAsync();
 
         Assert.Equal(["one", "two", "three"], generated.Select(chunk => chunk.Field));
         Assert.Equal(reflected.Select(chunk => chunk.Field), generated.Select(chunk => chunk.Field));
@@ -86,7 +86,7 @@ public class TypedJsonTests
             """[{"field":"one"},null,{"field":"two"}]""", HttpStatusCode.OK)));
 
         var reflected = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsJsonStreamAsync<Response>().ToListAsync();
-        var generated = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsJsonStreamAsync(TestJson.Default.Response).ToListAsync();
+        var generated = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsJsonStreamAsync(TestJson.Default.Response, CancellationToken.None).ToListAsync();
 
         Assert.Equal(["one", "two"], generated.Select(element => element.Field));
         Assert.Equal(reflected.Select(element => element.Field), generated.Select(element => element.Field));
@@ -112,8 +112,8 @@ public class TypedJsonTests
         using var client = Client(new RecordingHandler(Canned.Text(stream, HttpStatusCode.OK)));
 
         var reflected = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsSseEventsAsync<Response>().ToListAsync();
-        var generated = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsSseEventsAsync(TestJson.Default.Response).ToListAsync();
-        var data = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsSseAsync(TestJson.Default.Response).ToListAsync();
+        var generated = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsSseEventsAsync(TestJson.Default.Response, CancellationToken.None).ToListAsync();
+        var data = await new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsSseAsync(TestJson.Default.Response, CancellationToken.None).ToListAsync();
 
         Assert.Equal(["one", "two"], data.Select(chunk => chunk.Field));
         Assert.Equal(
@@ -128,11 +128,11 @@ public class TypedJsonTests
         using var client = Client(handler);
 
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsync<Response>(typeInfo: null!));
+            new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsync<Response>(typeInfo: null!, CancellationToken.None));
         Assert.Throws<ArgumentNullException>(() =>
-            new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsNdjsonAsync<Response>(typeInfo: null!));
+            new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsNdjsonAsync<Response>(typeInfo: null!, CancellationToken.None));
         Assert.Throws<ArgumentNullException>(() =>
-            new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsSseEventsAsync<Response>(typeInfo: null!));
+            new HttpRequestBuilder(client, HttpMethod.Get, "thing").SendAsSseEventsAsync<Response>(typeInfo: null!, CancellationToken.None));
         Assert.Empty(handler.Requests);
     }
 }

@@ -128,7 +128,7 @@ public class Exchanges
     public async Task<int> LargeDocumentTyped()
     {
         var items = await new HttpRequestBuilder(_largeDocument, HttpMethod.Get, "items")
-            .SendAsync(ExchangeJson.Default.ItemArray)
+            .SendAsync(ExchangeJson.Default.ItemArray, CancellationToken.None)
             .ConfigureAwait(false);
 
         return items?.Length ?? 0;
@@ -155,7 +155,7 @@ public class Exchanges
         var read = 0;
 
         await foreach (var _ in new HttpRequestBuilder(_lines, HttpMethod.Get, "items")
-                           .SendAsNdjsonAsync(ExchangeJson.Default.Item)
+                           .SendAsNdjsonAsync(ExchangeJson.Default.Item, CancellationToken.None)
                            .ConfigureAwait(false))
             read++;
 
@@ -183,7 +183,7 @@ public class Exchanges
         var read = 0;
 
         await foreach (var _ in new HttpRequestBuilder(_events, HttpMethod.Get, "items")
-                           .SendAsSseEventsAsync(ExchangeJson.Default.Item)
+                           .SendAsSseEventsAsync(ExchangeJson.Default.Item, CancellationToken.None)
                            .ConfigureAwait(false))
             read++;
 
@@ -200,9 +200,9 @@ public class Exchanges
         var lines = await new HttpRequestBuilder(_lines, HttpMethod.Get, "items").SendAsNdjsonAsync<Item>().ToArrayAsync().ConfigureAwait(false);
         var events = await new HttpRequestBuilder(_events, HttpMethod.Get, "items").SendAsSseEventsAsync<Item>().ToArrayAsync().ConfigureAwait(false);
 
-        var largeTyped = await new HttpRequestBuilder(_largeDocument, HttpMethod.Get, "items").SendAsync(ExchangeJson.Default.ItemArray).ConfigureAwait(false);
-        var linesTyped = await new HttpRequestBuilder(_lines, HttpMethod.Get, "items").SendAsNdjsonAsync(ExchangeJson.Default.Item).ToArrayAsync().ConfigureAwait(false);
-        var eventsTyped = await new HttpRequestBuilder(_events, HttpMethod.Get, "items").SendAsSseEventsAsync(ExchangeJson.Default.Item).ToArrayAsync().ConfigureAwait(false);
+        var largeTyped = await new HttpRequestBuilder(_largeDocument, HttpMethod.Get, "items").SendAsync(ExchangeJson.Default.ItemArray, CancellationToken.None).ConfigureAwait(false);
+        var linesTyped = await new HttpRequestBuilder(_lines, HttpMethod.Get, "items").SendAsNdjsonAsync(ExchangeJson.Default.Item, CancellationToken.None).ToArrayAsync().ConfigureAwait(false);
+        var eventsTyped = await new HttpRequestBuilder(_events, HttpMethod.Get, "items").SendAsSseEventsAsync(ExchangeJson.Default.Item, CancellationToken.None).ToArrayAsync().ConfigureAwait(false);
 
         string[] read =
         [

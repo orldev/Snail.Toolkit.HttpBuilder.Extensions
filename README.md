@@ -205,7 +205,8 @@ Post("/api/chat")
 | `SendAsSseAsync<T>(ct)` | `SendAsSseAsync(typeInfo, ct)` |
 | `SendAsSseEventsAsync<T>(ct)` | `SendAsSseEventsAsync(typeInfo, ct)` |
 
-The metadata carries its own options: `JsonOptions` do not apply to it. Both read and
+The source-generated terminals take the token as a required argument; pass
+`CancellationToken.None` where there is none. The metadata carries its own options: `JsonOptions` do not apply to it. Both read and
 write the same bytes when the context is generated with the same options.
 `EnumMemberJsonConverter<T>` keeps the members of `T` it reads through the trimmer.
 

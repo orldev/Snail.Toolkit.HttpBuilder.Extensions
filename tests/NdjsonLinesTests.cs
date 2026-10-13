@@ -45,7 +45,7 @@ public class NdjsonLinesTests
         {
             var expected = await ReadAsBeforeAsync(bytes, chunk);
             var reflected = await ReadAsync(bytes, chunk, builder => builder.SendAsNdjsonAsync<Response>());
-            var generated = await ReadAsync(bytes, chunk, builder => builder.SendAsNdjsonAsync(TestJson.Default.Response));
+            var generated = await ReadAsync(bytes, chunk, builder => builder.SendAsNdjsonAsync(TestJson.Default.Response, CancellationToken.None));
 
             Assert.True(expected == reflected, $"{body}, {chunk} bytes a read: {reflected} instead of {expected}");
             Assert.True(expected == generated, $"{body}, {chunk} bytes a read, typed: {generated} instead of {expected}");

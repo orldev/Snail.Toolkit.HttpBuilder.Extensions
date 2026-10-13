@@ -30,10 +30,10 @@ public static class HttpRequestTerminals
         "Reads JSON with IHttpRequestBuilder.JsonOptions, which resolves types by reflection. "
         + "Trimmed and Native AOT apps pass a JsonTypeInfo<T> from a JsonSerializerContext instead.";
 
-    /// <summary>Why each overload taking a <see cref="JsonTypeInfo{T}"/> may keep an optional token.</summary>
-    private const string BesideTheReflectionOverload =
-        "The overload is told apart by its required JsonTypeInfo<T>, so no call binds differently: the shape "
-        + "System.Net.Http.Json gives GetFromJsonAsync. A required token here would be the one call that cannot omit it.";
+    /// <summary>Why each released reflection overload keeps its optional token beside a longer overload.</summary>
+    private const string ReleasedSignature =
+        "Released in 0.3.0 with an optional token: dropping the default would break every caller that omits it. "
+        + "The JsonTypeInfo<T> overload beside it takes a required token, so no call binds differently.";
 
     /// <summary>Sends the request and deserializes a successful JSON response.</summary>
     /// <returns>The body, or <c>default</c> when the response carries none.</returns>
@@ -46,6 +46,7 @@ public static class HttpRequestTerminals
     /// </remarks>
     [RequiresUnreferencedCode(ReflectionMessage)]
     [RequiresDynamicCode(ReflectionMessage)]
+    [SuppressMessage("ApiDesign", "RS0027:API with optional parameter(s) should have the most parameters amongst its public overloads", Justification = ReleasedSignature)]
     public static async Task<TValue?> SendAsync<TValue>(
         this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)
     {
@@ -70,9 +71,8 @@ public static class HttpRequestTerminals
     /// <returns>The body, or <c>default</c> when the response carries none.</returns>
     /// <exception cref="HttpBuilderException">The status was not a success.</exception>
     /// <remarks>Reads as <see cref="SendAsync{TValue}(IHttpRequestBuilder, CancellationToken)"/> does.</remarks>
-    [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = BesideTheReflectionOverload)]
     public static async Task<TValue?> SendAsync<TValue>(
-        this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken = default)
+        this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
@@ -114,6 +114,7 @@ public static class HttpRequestTerminals
     /// </remarks>
     [RequiresUnreferencedCode(ReflectionMessage)]
     [RequiresDynamicCode(ReflectionMessage)]
+    [SuppressMessage("ApiDesign", "RS0027:API with optional parameter(s) should have the most parameters amongst its public overloads", Justification = ReleasedSignature)]
     public static IAsyncEnumerable<TValue> SendAsNdjsonAsync<TValue>(
         this IHttpRequestBuilder builder, CancellationToken cancellationToken = default) =>
         ReadNdjsonAsync(
@@ -129,9 +130,8 @@ public static class HttpRequestTerminals
     /// </summary>
     /// <exception cref="HttpBuilderException">The status was not a success.</exception>
     /// <remarks>Reads as <see cref="SendAsNdjsonAsync{TValue}(IHttpRequestBuilder, CancellationToken)"/> does.</remarks>
-    [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = BesideTheReflectionOverload)]
     public static IAsyncEnumerable<TValue> SendAsNdjsonAsync<TValue>(
-        this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken = default)
+        this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
@@ -174,6 +174,7 @@ public static class HttpRequestTerminals
     /// <exception cref="HttpBuilderException">The status was not a success.</exception>
     [RequiresUnreferencedCode(ReflectionMessage)]
     [RequiresDynamicCode(ReflectionMessage)]
+    [SuppressMessage("ApiDesign", "RS0027:API with optional parameter(s) should have the most parameters amongst its public overloads", Justification = ReleasedSignature)]
     public static IAsyncEnumerable<TValue> SendAsJsonStreamAsync<TValue>(
         this IHttpRequestBuilder builder, CancellationToken cancellationToken = default) =>
         ReadJsonStreamAsync(
@@ -189,9 +190,8 @@ public static class HttpRequestTerminals
     /// </summary>
     /// <exception cref="HttpBuilderException">The status was not a success.</exception>
     /// <remarks>Reads as <see cref="SendAsJsonStreamAsync{TValue}(IHttpRequestBuilder, CancellationToken)"/> does.</remarks>
-    [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = BesideTheReflectionOverload)]
     public static IAsyncEnumerable<TValue> SendAsJsonStreamAsync<TValue>(
-        this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken = default)
+        this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
@@ -235,6 +235,7 @@ public static class HttpRequestTerminals
     /// <exception cref="HttpBuilderException">The status was not a success.</exception>
     [RequiresUnreferencedCode(ReflectionMessage)]
     [RequiresDynamicCode(ReflectionMessage)]
+    [SuppressMessage("ApiDesign", "RS0027:API with optional parameter(s) should have the most parameters amongst its public overloads", Justification = ReleasedSignature)]
     public static async IAsyncEnumerable<TValue> SendAsSseAsync<TValue>(
         this IHttpRequestBuilder builder,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -254,9 +255,8 @@ public static class HttpRequestTerminals
     /// </summary>
     /// <exception cref="HttpBuilderException">The status was not a success.</exception>
     /// <remarks>Reads as <see cref="SendAsSseAsync{TValue}(IHttpRequestBuilder, CancellationToken)"/> does.</remarks>
-    [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = BesideTheReflectionOverload)]
     public static IAsyncEnumerable<TValue> SendAsSseAsync<TValue>(
-        this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken = default)
+        this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
@@ -282,6 +282,7 @@ public static class HttpRequestTerminals
     /// <exception cref="HttpBuilderException">The status was not a success.</exception>
     [RequiresUnreferencedCode(ReflectionMessage)]
     [RequiresDynamicCode(ReflectionMessage)]
+    [SuppressMessage("ApiDesign", "RS0027:API with optional parameter(s) should have the most parameters amongst its public overloads", Justification = ReleasedSignature)]
     public static IAsyncEnumerable<SseEvent<TValue>> SendAsSseEventsAsync<TValue>(
         this IHttpRequestBuilder builder, CancellationToken cancellationToken = default) =>
         ReadSseEventsAsync(
@@ -297,9 +298,8 @@ public static class HttpRequestTerminals
     /// </summary>
     /// <exception cref="HttpBuilderException">The status was not a success.</exception>
     /// <remarks>Reads as <see cref="SendAsSseEventsAsync{TValue}(IHttpRequestBuilder, CancellationToken)"/> does.</remarks>
-    [SuppressMessage("ApiDesign", "RS0026:Do not add multiple public overloads with optional parameters", Justification = BesideTheReflectionOverload)]
     public static IAsyncEnumerable<SseEvent<TValue>> SendAsSseEventsAsync<TValue>(
-        this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken = default)
+        this IHttpRequestBuilder builder, JsonTypeInfo<TValue> typeInfo, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
