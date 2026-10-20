@@ -38,6 +38,11 @@ public sealed class HttpBuilderException(
     /// <summary>Gets the response body, truncated. Null if it could not be read.</summary>
     public string? Body { get; } = body;
 
+    /// <summary>The one line a log writes for the failure.</summary>
+    /// <remarks>
+    /// The message names the URI without its query: a key passed as a query parameter would otherwise reach every
+    /// log that writes the exception. <see cref="RequestUri"/> keeps the whole URI for code that needs it.
+    /// </remarks>
     private static string Describe(
         HttpMethod method,
         Uri? requestUri,
@@ -46,8 +51,15 @@ public sealed class HttpBuilderException(
         string? body)
     {
         var reason = string.IsNullOrWhiteSpace(reasonPhrase) ? statusCode.ToString() : reasonPhrase;
-        var message = $"{method} {requestUri} responded {(int)statusCode} {reason}.";
+        var message = $"{method} {WithoutQuery(requestUri)} responded {(int)statusCode} {reason}.";
 
         return string.IsNullOrWhiteSpace(body) ? message : $"{message} Body: {body}";
     }
+
+    private static string? WithoutQuery(Uri? requestUri) => requestUri switch
+    {
+        null => null,
+        { IsAbsoluteUri: true } => requestUri.GetLeftPart(UriPartial.Path),
+        _ => requestUri.OriginalString.Split('?', '#')[0]
+    };
 }

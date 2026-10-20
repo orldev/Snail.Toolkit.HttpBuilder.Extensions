@@ -53,9 +53,11 @@ public interface IHttpRequestBuilder
     IHttpRequestBuilder Content(HttpContent? content);
 
     /// <summary>Adds one header. Content headers such as <c>Content-Type</c> go to the body.</summary>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty or not an HTTP field name.</exception>
     IHttpRequestBuilder Header(string name, string? value);
 
     /// <summary>Adds several headers, keeping any already set.</summary>
+    /// <exception cref="ArgumentException">A name is empty or not an HTTP field name.</exception>
     IHttpRequestBuilder Headers(IEnumerable<KeyValuePair<string, string>> headers);
 
     /// <summary>Sets the <c>Accept</c> header.</summary>

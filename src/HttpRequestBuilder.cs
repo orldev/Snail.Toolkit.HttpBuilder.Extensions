@@ -1,3 +1,5 @@
+using System.Buffers;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Json;
 using System.Text;
@@ -11,6 +13,10 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// every later send throws <see cref="InvalidOperationException"/>.</remarks>
 public sealed class HttpRequestBuilder : IHttpRequestBuilder
 {
+    /// <summary>The characters of an HTTP field name, the <c>tchar</c> of RFC 9110.</summary>
+    private static readonly SearchValues<char> FieldNameCharacters =
+        SearchValues.Create("!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+
     private readonly HttpClient _client;
     private readonly HttpMethod _method;
     private readonly string _path;
@@ -119,19 +125,32 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is empty or not an HTTP field name.</exception>
+    /// <remarks>
+    /// The name is checked here, at the call that gave it: assembled at send time, an invalid name threw a
+    /// <see cref="FormatException"/> from the body's headers, or vanished from a request without a body.
+    /// </remarks>
     public IHttpRequestBuilder Header(string name, string? value)
     {
+        ArgumentException.ThrowIfNullOrEmpty(name);
+
+        if (name.AsSpan().ContainsAnyExcept(FieldNameCharacters))
+        {
+            throw new ArgumentException($"'{name}' is not an HTTP header name.", nameof(name));
+        }
+
         _headers.Add(new KeyValuePair<string, string?>(name, value));
 
         return this;
     }
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentException">A name is empty or not an HTTP field name.</exception>
     public IHttpRequestBuilder Headers(IEnumerable<KeyValuePair<string, string>> headers)
     {
         foreach (var (name, value) in headers)
         {
-            _headers.Add(new KeyValuePair<string, string?>(name, value));
+            Header(name, value);
         }
 
         return this;
@@ -202,9 +221,15 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// A failure body is read under what is left of the client's <see cref="HttpClient.Timeout"/>: after
+    /// <see cref="HttpCompletionOption.ResponseHeadersRead"/> the client no longer bounds the body, and an error
+    /// answer that stalls held the call for as long as the server kept the connection.
+    /// </remarks>
     public async Task<HttpResponseMessage> SendCheckedAsync(
         HttpCompletionOption completionOption, CancellationToken cancellationToken = default)
     {
+        var started = Stopwatch.GetTimestamp();
         var response = await SendAsync(completionOption, cancellationToken).ConfigureAwait(false);
 
         if (response.IsSuccessStatusCode)
@@ -214,7 +239,10 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
 
         try
         {
-            var body = await ReadCappedBodyAsync(response, cancellationToken).ConfigureAwait(false);
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deadline.CancelAfter(TimeLeft(started));
+
+            var body = await ReadCappedBodyAsync(response, deadline.Token, cancellationToken).ConfigureAwait(false);
 
             throw new HttpBuilderException(
                 _method, CreateRequestUri(), response.StatusCode, response.ReasonPhrase, body);
@@ -223,6 +251,19 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
         {
             response.Dispose();
         }
+    }
+
+    /// <summary>What is left of the client's timeout since <paramref name="started"/>; infinite when the timeout is.</summary>
+    private TimeSpan TimeLeft(long started)
+    {
+        if (_client.Timeout == Timeout.InfiniteTimeSpan)
+        {
+            return Timeout.InfiniteTimeSpan;
+        }
+
+        var left = _client.Timeout - Stopwatch.GetElapsedTime(started);
+
+        return left > TimeSpan.Zero ? left : TimeSpan.Zero;
     }
 
     /// <summary>Assembles the message. Internal so tests can inspect it.</summary>
@@ -293,17 +334,19 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// <summary>Reads at most <see cref="HttpBuilderException.BodyLimit"/> characters of a failure body.</summary>
     /// <remarks>
     /// The cap is applied at the stream, not after buffering, so an oversized — or
-    /// endless, on a streaming endpoint — error response cannot exhaust memory. An
-    /// unreadable body yields null: the status is the news, and a failed read must not
-    /// mask it.
+    /// endless, on a streaming endpoint — error response cannot exhaust memory, and under
+    /// <paramref name="deadline"/>, so a stalled one cannot hold the call. An unreadable or
+    /// late body yields null: the status is the news, and a failed read must not mask it;
+    /// only the caller's own cancellation propagates. The cut never ends on half of a
+    /// surrogate pair, which a log writer would turn into U+FFFD or refuse.
     /// </remarks>
     private static async Task<string?> ReadCappedBodyAsync(
-        HttpResponseMessage response, CancellationToken cancellationToken)
+        HttpResponseMessage response, CancellationToken deadline, CancellationToken cancellationToken)
     {
         try
         {
             await using var stream = await response.Content
-                .ReadAsStreamAsync(cancellationToken)
+                .ReadAsStreamAsync(deadline)
                 .ConfigureAwait(false);
             using var reader = new StreamReader(stream, Encoding.UTF8);
 
@@ -313,7 +356,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
             while (filled < buffer.Length)
             {
                 var read = await reader
-                    .ReadAsync(buffer.AsMemory(filled), cancellationToken)
+                    .ReadAsync(buffer.AsMemory(filled), deadline)
                     .ConfigureAwait(false);
 
                 if (read == 0)
@@ -324,9 +367,21 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
                 filled += read;
             }
 
-            return filled > HttpBuilderException.BodyLimit
-                ? $"{new string(buffer, 0, HttpBuilderException.BodyLimit)}…"
-                : new string(buffer, 0, filled);
+            if (filled <= HttpBuilderException.BodyLimit)
+            {
+                return new string(buffer, 0, filled);
+            }
+
+            var kept = char.IsHighSurrogate(buffer[HttpBuilderException.BodyLimit - 1])
+                ? HttpBuilderException.BodyLimit - 1
+                : HttpBuilderException.BodyLimit;
+
+            return $"{new string(buffer, 0, kept)}…";
+        }
+        catch (OperationCanceledException exception)
+            when (cancellationToken.IsCancellationRequested && exception.CancellationToken != cancellationToken)
+        {
+            throw new TaskCanceledException(exception.Message, exception, cancellationToken);
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {

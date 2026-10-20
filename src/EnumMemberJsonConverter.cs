@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text.Json;
@@ -35,6 +36,7 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
     private readonly Dictionary<TEnum, JsonEncodedText> _enumToEncoded = [];
     private readonly Dictionary<string, TEnum> _stringToEnum = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, TEnum>.AlternateLookup<ReadOnlySpan<char>> _spanToEnum;
+    private readonly Dictionary<long, TEnum> _numberToEnum = [];
 
     /// <summary>The longest wire value, in UTF-8 bytes, read on the stack rather than into a string.</summary>
     private const int StackNameLimit = 128;
@@ -57,6 +59,11 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
                 .GetCustomAttribute<EnumMemberAttribute>(inherit: false);
 
             _stringToEnum.TryAdd(name, value);
+
+            if (TryNumberOf(value, out var number))
+            {
+                _numberToEnum.TryAdd(number, value);
+            }
 
             if (attribute?.Value is not null)
             {
@@ -91,7 +98,7 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
     {
         if (reader.TokenType == JsonTokenType.Number)
         {
-            return reader.TryGetInt64(out var number) ? AsDefined(number) : default;
+            return reader.TryGetInt64(out var number) ? _numberToEnum.GetValueOrDefault(number) : default;
         }
 
         var length = reader.HasValueSequence ? reader.ValueSequence.Length : reader.ValueSpan.Length;
@@ -109,12 +116,25 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
         return string.IsNullOrEmpty(value) ? default : _stringToEnum.GetValueOrDefault(value);
     }
 
-    /// <summary>Maps a numeric wire value onto a defined member, or <c>default</c>.</summary>
-    private TEnum AsDefined(long number)
+    /// <summary>The number a member stands for, when a JSON number read as <see cref="long"/> can name it.</summary>
+    /// <remarks>
+    /// Numbers are matched against the members' own values, never cast to the enum: <see cref="Enum.ToObject(Type, long)"/>
+    /// truncates to the underlying type, so 258 on a byte enum read as the member 2. A <see cref="ulong"/> member
+    /// above <see cref="long.MaxValue"/> has no such number and reads as <c>default</c>, as before.
+    /// </remarks>
+    private static bool TryNumberOf(TEnum value, out long number)
     {
-        var value = (TEnum)Enum.ToObject(typeof(TEnum), number);
+        if (Type.GetTypeCode(typeof(TEnum)) != TypeCode.UInt64)
+        {
+            number = Convert.ToInt64(value, CultureInfo.InvariantCulture);
 
-        return _enumToString.ContainsKey(value) ? value : default;
+            return true;
+        }
+
+        var unsigned = Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+        number = unchecked((long)unsigned);
+
+        return unsigned <= long.MaxValue;
     }
 
     /// <summary>Writes an enum as the string the API expects.</summary>
