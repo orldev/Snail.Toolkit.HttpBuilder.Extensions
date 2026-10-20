@@ -43,7 +43,7 @@ await Get("v1/things/1").SendAsync<Thing>(ct);   // no body, no X-Trace
 | `AsString(value, encoding?, mediaType?)` | UTF-8 and `text/plain` by default |
 | `AsForm(fields)` | `application/x-www-form-urlencoded` |
 | `Content(httpContent)` | a body you prepared yourself |
-| `Header(name, value)` / `Headers(pairs)` | additive; content headers are routed to the body |
+| `Header(name, value)` / `Headers(pairs)` | additive; content headers are routed to the body; a name that is not an HTTP field name throws `ArgumentException` |
 | `Accept(mediaType)` | shorthand for the `Accept` header |
 | `Query(name, value)` / `Query(pairs)` | escaped and appended; **null values are skipped** |
 | `WithVersion` / `WithVersionPolicy` | HTTP version; defaults to the client's `DefaultRequestVersion` and policy |
@@ -68,14 +68,17 @@ sends and is **frozen**; the typed and streaming terminals are extension methods
 (`HttpRequestTerminals`), so a new response format never breaks an implementor of the
 interface.
 
-A builder is **single-use**: sending disposes the request content, so a second send on
-the same instance throws `InvalidOperationException`. Start the next call from a verb
-on the client.
+A builder is **single-use**: it describes one request, and content handed to it — a
+stream above all — can be read only once, so a second send on the same instance throws
+`InvalidOperationException`. Start the next call from a verb on the client.
 
 The typed overloads throw `HttpBuilderException` on a failure status. It carries
 the method, URI, status and — the useful part — the **response body**, which is where
-APIs explain what was wrong and which is otherwise lost. The body is read capped (4 KB),
-so an oversized error response cannot exhaust memory:
+APIs explain what was wrong and which is otherwise lost. The body is read capped (4 KB)
+and within what is left of the client's `Timeout`, so an oversized error response cannot
+exhaust memory and a stalled one cannot hold the call; a body that does not arrive in
+time is `null`, and the status is still thrown. The message names the URI without its
+query, so a key passed with `Query` stays out of logs; `RequestUri` keeps all of it:
 
 ```csharp
 catch (HttpBuilderException ex)
@@ -174,10 +177,11 @@ public enum PaymentType
 ```
 
 Both the member name and the `EnumMember` value are accepted when reading, ignoring
-case, and a numeric wire value maps onto the defined member it names. Anything
-unrecognised reads as `default` rather than throwing, so an API adding a value — or
-switching its serializer to numbers — does not break deserialization of everything
-else.
+case, and a numeric wire value maps onto the defined member it names. A string or a
+number that names no member reads as `default` rather than throwing, so an API adding a
+value — or switching its serializer to numbers — does not break deserialization of
+everything else. A token of another kind, such as a boolean or an object, throws
+`JsonException`: that breaks the contract rather than extending it.
 
 #### Trimming and Native AOT
 

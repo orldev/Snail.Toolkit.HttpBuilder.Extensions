@@ -35,8 +35,8 @@ public sealed record Canned(HttpStatusCode StatusCode, string? Body)
 /// Captures what the builder actually put on the wire and replays canned responses.
 /// </summary>
 /// <remarks>
-/// Bodies are read as the request passes through, because the content is disposed with
-/// the request message and cannot be read afterwards.
+/// Bodies are read as the request passes through, the one moment every kind of content —
+/// a stream that reads once among them — is still unread.
 /// </remarks>
 /// <param name="responses">
 /// Responses to return, in order. The last one repeats once they run out, so a test that

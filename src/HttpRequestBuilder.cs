@@ -266,7 +266,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
         return left > TimeSpan.Zero ? left : TimeSpan.Zero;
     }
 
-    /// <summary>Assembles the message. Internal so tests can inspect it.</summary>
+    /// <summary>Assembles the message.</summary>
     /// <remarks>
     /// A header the request collection rejects belongs to the content, and lands there as
     /// a replacement rather than an addition: the body already carries a
@@ -274,7 +274,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// policy default to what the client is configured with, so a typed client set up
     /// for HTTP/2 is not silently downgraded.
     /// </remarks>
-    internal HttpRequestMessage CreateRequestMessage()
+    private HttpRequestMessage CreateRequestMessage()
     {
         var message = new HttpRequestMessage(_method, CreateRequestUri())
         {
@@ -314,7 +314,8 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
 
     /// <summary>
     /// Marks the one send this builder describes, so a second send fails loudly instead
-    /// of reusing content the first send already disposed.
+    /// of sending its content again: a stream handed to <see cref="Content"/> can be read
+    /// only once.
     /// </summary>
     /// <remarks>
     /// Set atomically, so the guard holds even for two racing sends, and only after the
