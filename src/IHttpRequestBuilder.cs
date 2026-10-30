@@ -16,9 +16,9 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// new format never breaks an implementor of this contract.
 /// </para>
 /// <para>
-/// A builder is single-use: the send disposes the request content, so a second send on
-/// the same instance throws <see cref="InvalidOperationException"/> rather than reusing
-/// what is gone. Start the next call from a verb on the client.
+/// A builder is single-use: content handed to it — a stream above all — can be read only
+/// once, so a second send on the same instance throws <see cref="InvalidOperationException"/>.
+/// Start the next call from a verb on the client.
 /// </para>
 /// </remarks>
 public interface IHttpRequestBuilder
@@ -53,7 +53,9 @@ public interface IHttpRequestBuilder
     IHttpRequestBuilder Content(HttpContent? content);
 
     /// <summary>Adds one header. Content headers such as <c>Content-Type</c> go to the body.</summary>
-    /// <exception cref="ArgumentException"><paramref name="name"/> is empty or not an HTTP field name.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name"/> is empty or not an HTTP field name, or <paramref name="value"/> holds a line break.
+    /// </exception>
     IHttpRequestBuilder Header(string name, string? value);
 
     /// <summary>Adds several headers, keeping any already set.</summary>
@@ -67,6 +69,8 @@ public interface IHttpRequestBuilder
     /// Appends an escaped query parameter. A null value is skipped, so an optional filter
     /// needs no branching at the call site; an empty string is a real value.
     /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> or <paramref name="value"/> holds half a surrogate pair.</exception>
     IHttpRequestBuilder Query(string name, string? value);
 
     /// <summary>Appends several query parameters, skipping null values.</summary>

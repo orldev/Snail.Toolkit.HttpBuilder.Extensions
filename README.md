@@ -43,9 +43,9 @@ await Get("v1/things/1").SendAsync<Thing>(ct);   // no body, no X-Trace
 | `AsString(value, encoding?, mediaType?)` | UTF-8 and `text/plain` by default |
 | `AsForm(fields)` | `application/x-www-form-urlencoded` |
 | `Content(httpContent)` | a body you prepared yourself |
-| `Header(name, value)` / `Headers(pairs)` | additive; content headers are routed to the body; a name that is not an HTTP field name throws `ArgumentException` |
+| `Header(name, value)` / `Headers(pairs)` | additive; content headers are routed to the body; a name that is not an HTTP field name, or a value with a line break, throws `ArgumentException` |
 | `Accept(mediaType)` | shorthand for the `Accept` header |
-| `Query(name, value)` / `Query(pairs)` | escaped and appended; **null values are skipped** |
+| `Query(name, value)` / `Query(pairs)` | escaped and appended, before any `#fragment`; **null values are skipped**; a null name or half a surrogate pair throws |
 | `WithVersion` / `WithVersionPolicy` | HTTP version; defaults to the client's `DefaultRequestVersion` and policy |
 | `WithJsonOptions(options)` | serializer options for the body and the response; the options given last win |
 
@@ -78,7 +78,8 @@ APIs explain what was wrong and which is otherwise lost. The body is read capped
 and within what is left of the client's `Timeout`, so an oversized error response cannot
 exhaust memory and a stalled one cannot hold the call; a body that does not arrive in
 time is `null`, and the status is still thrown. The message names the URI without its
-query, so a key passed with `Query` stays out of logs; `RequestUri` keeps all of it:
+user information and query, so a password in the base address or a key passed with
+`Query` stays out of logs; `RequestUri` keeps all of it:
 
 ```csharp
 catch (HttpBuilderException ex)
