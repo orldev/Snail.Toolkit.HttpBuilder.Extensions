@@ -112,6 +112,28 @@ public class StreamedTerminalTests
         Assert.Equal(buffered.GetType(), streamed.GetType());
     }
 
+    /// <summary>
+    /// Which reader notices a cancellation first is a race: the stream's own delay throws a
+    /// <see cref="TaskCanceledException"/>, the pipe above it a plain <see cref="OperationCanceledException"/> with the
+    /// caller's token. The caller sees what <see cref="HttpClient"/> throws either way; the race once failed the test
+    /// above on a CI runner.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SendStreamedAsync_CancellationNoticedByThePipe_ThrowsTaskCanceledException(bool hasClientTimeout)
+    {
+        using var client = Client(
+            new StreamingHandler(TimeSpan.Zero, () => ScriptedBody.CancelledPlainly()),
+            hasClientTimeout ? TimeSpan.FromSeconds(10) : Timeout.InfiniteTimeSpan);
+        using var cancel = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+
+        var streamed = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Get(client).SendStreamedAsync<Response>(cancel.Token));
+
+        Assert.IsType<TaskCanceledException>(streamed);
+        Assert.Equal(cancel.Token, streamed.CancellationToken);
+    }
+
     [Fact]
     public async Task SendStreamedAsync_ConnectionBreaksInTheBody_ThrowsWhatSendAsyncThrows()
     {
@@ -197,6 +219,22 @@ public class StreamedTerminalTests
         public static ScriptedBody Delayed(TimeSpan delay) => new(token => Task.Delay(delay, token));
 
         public static ScriptedBody Breaking() => new(_ => Task.FromException(new IOException("The connection was reset.")));
+
+        /// <summary>
+        /// Stalls, and on cancellation throws a plain <see cref="OperationCanceledException"/> carrying the caller's
+        /// token, as a <c>PipeReader</c> does when it notices the cancellation before the stream under it.
+        /// </summary>
+        public static ScriptedBody CancelledPlainly() => new(async token =>
+        {
+            try
+            {
+                await Task.Delay(Timeout.Infinite, token);
+            }
+            catch (TaskCanceledException)
+            {
+                throw new OperationCanceledException(token);
+            }
+        });
 
         public override bool CanRead => true;
 

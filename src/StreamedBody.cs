@@ -71,11 +71,23 @@ internal static class StreamedBody
                 message, new TimeoutException(exception.Message, exception), exception.CancellationToken);
         }
         catch (OperationCanceledException exception)
-            when (cancellationToken.IsCancellationRequested && exception.CancellationToken != cancellationToken)
+            when (cancellationToken.IsCancellationRequested && !IsTheCallersCancellation(exception, cancellationToken))
         {
             throw new TaskCanceledException(exception.Message, exception, cancellationToken);
         }
     }
+
+    /// <summary>
+    /// Whether a cancellation already reads as <see cref="HttpClient"/> reports the caller's: a
+    /// <see cref="TaskCanceledException"/> carrying the caller's token.
+    /// </summary>
+    /// <remarks>
+    /// Which reader notices a cancellation first is a race — the stream's own wait throws a
+    /// <see cref="TaskCanceledException"/>, a <c>PipeReader</c> above it a plain <see cref="OperationCanceledException"/>
+    /// with the same token — so the type alone, or the token alone, does not say it.
+    /// </remarks>
+    internal static bool IsTheCallersCancellation(OperationCanceledException exception, CancellationToken cancellationToken) =>
+        exception is TaskCanceledException && exception.CancellationToken == cancellationToken;
 
     /// <summary>Parses a body from its first byte, or answers <c>default</c> when there is none.</summary>
     /// <remarks>Emptiness is the bytes received, never <c>Content-Length</c>, as for a buffered body.</remarks>

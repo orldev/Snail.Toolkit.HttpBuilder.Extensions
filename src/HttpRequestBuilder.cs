@@ -411,7 +411,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
             return $"{new string(buffer, 0, kept)}…";
         }
         catch (OperationCanceledException exception)
-            when (cancellationToken.IsCancellationRequested && exception.CancellationToken != cancellationToken)
+            when (cancellationToken.IsCancellationRequested && !StreamedBody.IsTheCallersCancellation(exception, cancellationToken))
         {
             throw new TaskCanceledException(exception.Message, exception, cancellationToken);
         }
