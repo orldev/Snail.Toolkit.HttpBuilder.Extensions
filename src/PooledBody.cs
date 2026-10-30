@@ -60,7 +60,7 @@ internal readonly struct PooledBody : IDisposable
             }
             catch
             {
-                ArrayPool<byte>.Shared.Return(buffer);
+                ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
                 throw;
             }
 
@@ -68,12 +68,19 @@ internal readonly struct PooledBody : IDisposable
         }
     }
 
-    /// <summary>Returns the array to the pool when it came from there.</summary>
+    /// <summary>Returns the array to the pool when it came from there, the body's bytes cleared first.</summary>
+    /// <remarks>
+    /// The pool is shared by the whole process, and a body may be a secret — a Vault answer: returned as it was, it
+    /// stayed readable to the next code renting an array of that size.
+    /// </remarks>
     public void Dispose()
     {
-        if (_isRented)
+        if (!_isRented)
         {
-            ArrayPool<byte>.Shared.Return(_buffer);
+            return;
         }
+
+        _buffer.AsSpan(0, Length).Clear();
+        ArrayPool<byte>.Shared.Return(_buffer);
     }
 }

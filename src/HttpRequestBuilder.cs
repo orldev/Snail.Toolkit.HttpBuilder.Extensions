@@ -17,6 +17,9 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     private static readonly SearchValues<char> FieldNameCharacters =
         SearchValues.Create("!#$%&'*+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
 
+    /// <summary>The characters that end a header line on the wire.</summary>
+    private static readonly SearchValues<char> LineBreaks = SearchValues.Create("\r\n\0");
+
     private readonly HttpClient _client;
     private readonly HttpMethod _method;
     private readonly string _path;
@@ -125,10 +128,13 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     }
 
     /// <inheritdoc/>
-    /// <exception cref="ArgumentException"><paramref name="name"/> is empty or not an HTTP field name.</exception>
+    /// <exception cref="ArgumentException">
+    /// <paramref name="name"/> is empty or not an HTTP field name, or <paramref name="value"/> holds a line break.
+    /// </exception>
     /// <remarks>
-    /// The name is checked here, at the call that gave it: assembled at send time, an invalid name threw a
-    /// <see cref="FormatException"/> from the body's headers, or vanished from a request without a body.
+    /// Both are checked here, at the call that gave them. Assembled at send time, an invalid name threw a
+    /// <see cref="FormatException"/> from the body's headers or vanished from a request without a body, and a value
+    /// is stored without validation: <c>"a\r\nX-Injected: b"</c> reached the socket as a header of its own.
     /// </remarks>
     public IHttpRequestBuilder Header(string name, string? value)
     {
@@ -137,6 +143,11 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
         if (name.AsSpan().ContainsAnyExcept(FieldNameCharacters))
         {
             throw new ArgumentException($"'{name}' is not an HTTP header name.", nameof(name));
+        }
+
+        if (value is not null && value.AsSpan().ContainsAny(LineBreaks))
+        {
+            throw new ArgumentException($"The value of '{name}' holds a line break, which would end the header.", nameof(value));
         }
 
         _headers.Add(new KeyValuePair<string, string?>(name, value));
@@ -160,8 +171,26 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     public IHttpRequestBuilder Accept(string mediaType) => Header("Accept", mediaType);
 
     /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is null.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> or <paramref name="value"/> holds half a surrogate pair.</exception>
+    /// <remarks>
+    /// Checked here, at the call: escaped at send time, a null name failed there, and half a surrogate pair was sent
+    /// as U+FFFD without a word.
+    /// </remarks>
     public IHttpRequestBuilder Query(string name, string? value)
     {
+        ArgumentNullException.ThrowIfNull(name);
+
+        if (!IsWellFormed(name))
+        {
+            throw new ArgumentException("The query parameter's name holds half a surrogate pair.", nameof(name));
+        }
+
+        if (value is not null && !IsWellFormed(value))
+        {
+            throw new ArgumentException($"The value of the query parameter '{name}' holds half a surrogate pair.", nameof(value));
+        }
+
         if (value is not null)
         {
             _query.Add(new KeyValuePair<string, string>(name, value));
@@ -424,6 +453,32 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
         return new Uri($"{authority}{basePath}/{path}", UriKind.Absolute);
     }
 
+    /// <summary>Whether the text is whole UTF-16, every surrogate in a pair, so escaping it alters nothing.</summary>
+    private static bool IsWellFormed(ReadOnlySpan<char> text)
+    {
+        if (!text.ContainsAnyInRange('\uD800', '\uDFFF'))
+        {
+            return true;
+        }
+
+        while (!text.IsEmpty)
+        {
+            if (Rune.DecodeFromUtf16(text, out _, out var used) != OperationStatus.Done)
+            {
+                return false;
+            }
+
+            text = text[used..];
+        }
+
+        return true;
+    }
+
+    /// <summary>The path with the query parameters, placed before any fragment.</summary>
+    /// <remarks>
+    /// Appended after a fragment, the query was part of the fragment, which never leaves the client: the parameters
+    /// were dropped without a word.
+    /// </remarks>
     private string AppendQuery(string path)
     {
         if (_query.Count == 0)
@@ -431,8 +486,12 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
             return path;
         }
 
-        var uri = new StringBuilder(path);
-        var separator = path.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+        var fragmentStart = path.IndexOf('#', StringComparison.Ordinal);
+        var beforeFragment = fragmentStart < 0 ? path : path[..fragmentStart];
+        var fragment = fragmentStart < 0 ? string.Empty : path[fragmentStart..];
+
+        var uri = new StringBuilder(beforeFragment);
+        var separator = beforeFragment.Contains('?', StringComparison.Ordinal) ? '&' : '?';
 
         foreach (var (name, value) in _query)
         {
@@ -443,6 +502,8 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
 
             separator = '&';
         }
+
+        uri.Append(fragment);
 
         return uri.ToString();
     }

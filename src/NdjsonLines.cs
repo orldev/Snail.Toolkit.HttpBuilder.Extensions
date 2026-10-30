@@ -190,6 +190,7 @@ internal static class NdjsonLines
         }
         finally
         {
+            copy.AsSpan(0, length).Clear();
             ArrayPool<byte>.Shared.Return(copy);
         }
     }
