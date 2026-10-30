@@ -7,7 +7,7 @@ public static partial class HttpRequestTerminals
     public static async Task<string> SendAsStringAsync(
         this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)
     {
-        using var response = await builder
+        using HttpResponseMessage response = await builder
             .SendCheckedAsync(HttpCompletionOption.ResponseContentRead, cancellationToken)
             .ConfigureAwait(false);
 

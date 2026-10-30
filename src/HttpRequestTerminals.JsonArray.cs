@@ -49,15 +49,15 @@ public static partial class HttpRequestTerminals
         Func<Stream, TShape, CancellationToken, IAsyncEnumerable<TValue?>> parse,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        using var response = await builder
+        using HttpResponseMessage response = await builder
             .SendCheckedAsync(HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
 
-        await using var stream = await response.Content
+        await using Stream stream = await response.Content
             .ReadAsStreamAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        await foreach (var value in parse(stream, shape, cancellationToken).ConfigureAwait(false))
+        await foreach (TValue? value in parse(stream, shape, cancellationToken).ConfigureAwait(false))
         {
             if (value is not null)
             {

@@ -36,25 +36,25 @@ internal static class StreamedBody
     {
         if (builder is not HttpRequestBuilder own)
         {
-            using var buffered = await builder
+            using HttpResponseMessage buffered = await builder
                 .SendCheckedAsync(HttpCompletionOption.ResponseContentRead, cancellationToken)
                 .ConfigureAwait(false);
 
             return await ParseAsync(buffered.Content, shape, parse, cancellationToken).ConfigureAwait(false);
         }
 
-        var timeout = own.ClientTimeout;
-        var started = Stopwatch.GetTimestamp();
+        TimeSpan timeout = own.ClientTimeout;
+        long started = Stopwatch.GetTimestamp();
 
-        using var response = await builder
+        using HttpResponseMessage response = await builder
             .SendCheckedAsync(HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
 
-        using var deadline = timeout == Timeout.InfiniteTimeSpan
+        using CancellationTokenSource? deadline = timeout == Timeout.InfiniteTimeSpan
             ? null
             : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-        var remaining = timeout - Stopwatch.GetElapsedTime(started);
+        TimeSpan remaining = timeout - Stopwatch.GetElapsedTime(started);
 
         deadline?.CancelAfter(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
 
@@ -65,7 +65,7 @@ internal static class StreamedBody
         }
         catch (OperationCanceledException exception) when (deadline is not null && !cancellationToken.IsCancellationRequested)
         {
-            var message = string.Format(CultureInfo.CurrentCulture, TimeoutMessage, timeout.TotalSeconds);
+            string message = string.Format(CultureInfo.CurrentCulture, TimeoutMessage, timeout.TotalSeconds);
 
             throw new TaskCanceledException(
                 message, new TimeoutException(exception.Message, exception), exception.CancellationToken);
@@ -85,7 +85,7 @@ internal static class StreamedBody
         Func<PipeReader, TShape, CancellationToken, ValueTask<TValue?>> parse,
         CancellationToken cancellationToken)
     {
-        var stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        Stream stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
         await using (stream.ConfigureAwait(false))
         {
@@ -93,7 +93,7 @@ internal static class StreamedBody
 
             try
             {
-                var first = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+                ReadResult first = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
 
                 if (first.Buffer.IsEmpty && first.IsCompleted)
                 {

@@ -21,11 +21,11 @@ public static partial class HttpRequestTerminals
     public static async Task<TValue?> SendAsync<TValue>(
         this IHttpRequestBuilder builder, CancellationToken cancellationToken = default)
     {
-        using var response = await builder
+        using HttpResponseMessage response = await builder
             .SendCheckedAsync(HttpCompletionOption.ResponseContentRead, cancellationToken)
             .ConfigureAwait(false);
 
-        using var body = await PooledBody.ReadAsync(response.Content, cancellationToken).ConfigureAwait(false);
+        using PooledBody body = await PooledBody.ReadAsync(response.Content, cancellationToken).ConfigureAwait(false);
 
         if (body.Length == 0)
         {
@@ -47,11 +47,11 @@ public static partial class HttpRequestTerminals
     {
         ArgumentNullException.ThrowIfNull(typeInfo);
 
-        using var response = await builder
+        using HttpResponseMessage response = await builder
             .SendCheckedAsync(HttpCompletionOption.ResponseContentRead, cancellationToken)
             .ConfigureAwait(false);
 
-        using var body = await PooledBody.ReadAsync(response.Content, cancellationToken).ConfigureAwait(false);
+        using PooledBody body = await PooledBody.ReadAsync(response.Content, cancellationToken).ConfigureAwait(false);
 
         if (body.Length == 0)
         {

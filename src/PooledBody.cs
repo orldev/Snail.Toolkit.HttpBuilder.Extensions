@@ -33,7 +33,7 @@ internal readonly struct PooledBody : IDisposable
     /// </remarks>
     public static async Task<PooledBody> ReadAsync(HttpContent content, CancellationToken cancellationToken)
     {
-        var stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        Stream stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 
         await using (stream.ConfigureAwait(false))
         {
@@ -45,14 +45,14 @@ internal readonly struct PooledBody : IDisposable
                 return new PooledBody(copy.GetBuffer(), (int)copy.Length, isRented: false);
             }
 
-            var length = checked((int)(stream.Length - stream.Position));
+            int length = checked((int)(stream.Length - stream.Position));
 
             if (length == 0)
             {
                 return new PooledBody([], 0, isRented: false);
             }
 
-            var buffer = ArrayPool<byte>.Shared.Rent(length);
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(length);
 
             try
             {

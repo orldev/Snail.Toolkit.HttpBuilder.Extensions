@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using Moq;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.Contracts;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.Extensions;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.HttpEndpoints;
@@ -330,18 +329,15 @@ public class HttpRequestBuilderTests
     [InlineData("", null)]
     public async Task UnbufferedBody_ReadsLikeABufferedOne(string body, string? expected)
     {
-        var builder = new Mock<IHttpRequestBuilder>();
-        builder.SetupGet(b => b.JsonOptions).Returns(JsonSerializerOptions.Web);
-        builder
-            .Setup(b => b.SendCheckedAsync(HttpCompletionOption.ResponseContentRead, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK)
-            {
-                Content = new StreamContent(new ForwardOnlyStream(Encoding.UTF8.GetBytes(body)))
-            });
+        ForeignBuilder builder = new(() => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new StreamContent(new ForwardOnlyStream(Encoding.UTF8.GetBytes(body)))
+        });
 
-        var response = await builder.Object.SendAsync<Response>();
+        Response? response = await builder.SendAsync<Response>();
 
         Assert.Equal(expected, response?.Field);
+        Assert.Equal(HttpCompletionOption.ResponseContentRead, Assert.Single(builder.CheckedSends).Option);
     }
 
     /// <summary>A body larger than the pool's smaller buckets comes back whole.</summary>

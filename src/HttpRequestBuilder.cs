@@ -11,6 +11,8 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// <remarks>One instance describes one request, which is what keeps state from leaking
 /// into the next call on the same client. The first send marks the instance spent, and
 /// every later send throws <see cref="InvalidOperationException"/>.</remarks>
+[SuppressMessage("Design", "CA1001:Types that own disposable fields should be disposable",
+    Justification = "A builder lives for one fluent chain and is never disposed by its caller; the content it may hold is in-memory or the caller's own, and IDisposable on it would be public API that every call site ignores.")]
 public sealed class HttpRequestBuilder : IHttpRequestBuilder
 {
     /// <summary>The characters of an HTTP field name, the <c>tchar</c> of RFC 9110.</summary>
@@ -159,7 +161,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// <exception cref="ArgumentException">A name is empty or not an HTTP field name.</exception>
     public IHttpRequestBuilder Headers(IEnumerable<KeyValuePair<string, string>> headers)
     {
-        foreach (var (name, value) in headers)
+        foreach ((string name, string value) in headers)
         {
             Header(name, value);
         }
@@ -202,7 +204,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// <inheritdoc/>
     public IHttpRequestBuilder Query(IEnumerable<KeyValuePair<string, string?>> parameters)
     {
-        foreach (var (name, value) in parameters)
+        foreach ((string name, string? value) in parameters)
         {
             Query(name, value);
         }
@@ -242,7 +244,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     public Task<HttpResponseMessage> SendAsync(
         HttpCompletionOption completionOption, CancellationToken cancellationToken = default)
     {
-        var message = CreateRequestMessage();
+        HttpRequestMessage message = CreateRequestMessage();
 
         MarkSent();
 
@@ -258,8 +260,8 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     public async Task<HttpResponseMessage> SendCheckedAsync(
         HttpCompletionOption completionOption, CancellationToken cancellationToken = default)
     {
-        var started = Stopwatch.GetTimestamp();
-        var response = await SendAsync(completionOption, cancellationToken).ConfigureAwait(false);
+        long started = Stopwatch.GetTimestamp();
+        HttpResponseMessage response = await SendAsync(completionOption, cancellationToken).ConfigureAwait(false);
 
         if (response.IsSuccessStatusCode)
         {
@@ -271,7 +273,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(TimeLeft(started));
 
-            var body = await ReadCappedBodyAsync(response, deadline.Token, cancellationToken).ConfigureAwait(false);
+            string? body = await ReadCappedBodyAsync(response, deadline.Token, cancellationToken).ConfigureAwait(false);
 
             throw new HttpBuilderException(
                 _method, CreateRequestUri(), response.StatusCode, response.ReasonPhrase, body);
@@ -290,7 +292,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
             return Timeout.InfiniteTimeSpan;
         }
 
-        var left = _client.Timeout - Stopwatch.GetElapsedTime(started);
+        TimeSpan left = _client.Timeout - Stopwatch.GetElapsedTime(started);
 
         return left > TimeSpan.Zero ? left : TimeSpan.Zero;
     }
@@ -312,7 +314,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
             VersionPolicy = _versionPolicy ?? _client.DefaultVersionPolicy
         };
 
-        foreach (var (name, value) in _headers)
+        foreach ((string name, string? value) in _headers)
         {
             if (message.Headers.TryAddWithoutValidation(name, value))
             {
@@ -375,17 +377,17 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     {
         try
         {
-            await using var stream = await response.Content
+            await using Stream stream = await response.Content
                 .ReadAsStreamAsync(deadline)
                 .ConfigureAwait(false);
             using var reader = new StreamReader(stream, Encoding.UTF8);
 
-            var buffer = new char[HttpBuilderException.BodyLimit + 1];
-            var filled = 0;
+            char[] buffer = new char[HttpBuilderException.BodyLimit + 1];
+            int filled = 0;
 
             while (filled < buffer.Length)
             {
-                var read = await reader
+                int read = await reader
                     .ReadAsync(buffer.AsMemory(filled), deadline)
                     .ConfigureAwait(false);
 
@@ -402,7 +404,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
                 return new string(buffer, 0, filled);
             }
 
-            var kept = char.IsHighSurrogate(buffer[HttpBuilderException.BodyLimit - 1])
+            int kept = char.IsHighSurrogate(buffer[HttpBuilderException.BodyLimit - 1])
                 ? HttpBuilderException.BodyLimit - 1
                 : HttpBuilderException.BodyLimit;
 
@@ -428,27 +430,27 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
     /// </remarks>
     private Uri CreateRequestUri()
     {
-        var path = AppendQuery(_path);
+        string path = AppendQuery(_path);
 
-        if (Uri.TryCreate(path, UriKind.Absolute, out var absolute)
+        if (Uri.TryCreate(path, UriKind.Absolute, out Uri? absolute)
             && (absolute.Scheme == Uri.UriSchemeHttp || absolute.Scheme == Uri.UriSchemeHttps))
         {
             return absolute;
         }
 
-        var baseAddress = _client.BaseAddress
+        Uri baseAddress = _client.BaseAddress
             ?? throw new InvalidOperationException(
                 $"'{path}' is relative, so {nameof(HttpClient)}.{nameof(HttpClient.BaseAddress)} "
                 + "must be set. Give the client a base address or pass an absolute URL.");
 
-        var authority = baseAddress.GetLeftPart(UriPartial.Authority);
+        string authority = baseAddress.GetLeftPart(UriPartial.Authority);
 
         if (path.StartsWith('/'))
         {
             return new Uri($"{authority}{path}", UriKind.Absolute);
         }
 
-        var basePath = baseAddress.AbsolutePath.TrimEnd('/');
+        string basePath = baseAddress.AbsolutePath.TrimEnd('/');
 
         return new Uri($"{authority}{basePath}/{path}", UriKind.Absolute);
     }
@@ -463,7 +465,7 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
 
         while (!text.IsEmpty)
         {
-            if (Rune.DecodeFromUtf16(text, out _, out var used) != OperationStatus.Done)
+            if (Rune.DecodeFromUtf16(text, out _, out int used) != OperationStatus.Done)
             {
                 return false;
             }
@@ -486,14 +488,14 @@ public sealed class HttpRequestBuilder : IHttpRequestBuilder
             return path;
         }
 
-        var fragmentStart = path.IndexOf('#', StringComparison.Ordinal);
-        var beforeFragment = fragmentStart < 0 ? path : path[..fragmentStart];
-        var fragment = fragmentStart < 0 ? string.Empty : path[fragmentStart..];
+        int fragmentStart = path.IndexOf('#', StringComparison.Ordinal);
+        string beforeFragment = fragmentStart < 0 ? path : path[..fragmentStart];
+        string fragment = fragmentStart < 0 ? string.Empty : path[fragmentStart..];
 
         var uri = new StringBuilder(beforeFragment);
-        var separator = beforeFragment.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+        char separator = beforeFragment.Contains('?', StringComparison.Ordinal) ? '&' : '?';
 
-        foreach (var (name, value) in _query)
+        foreach ((string name, string value) in _query)
         {
             uri.Append(separator)
                 .Append(Uri.EscapeDataString(name))

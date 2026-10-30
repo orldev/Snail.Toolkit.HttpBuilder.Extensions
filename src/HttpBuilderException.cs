@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Net;
 
 namespace Snail.Toolkit.HttpBuilder.Extensions;
@@ -15,6 +16,8 @@ namespace Snail.Toolkit.HttpBuilder.Extensions;
 /// <param name="statusCode">The failure status the response carried.</param>
 /// <param name="reasonPhrase">The reason phrase, if the server sent one.</param>
 /// <param name="body">The response body, truncated; null if it could not be read.</param>
+[SuppressMessage("Design", "CA1032:Implement standard exception constructors",
+    Justification = "The exception exists to carry the method, URI, status and body of a failed request; a constructor without them would make one that says nothing, and each added constructor is public API.")]
 public sealed class HttpBuilderException(
     HttpMethod method,
     Uri? requestUri,
@@ -51,8 +54,8 @@ public sealed class HttpBuilderException(
         string? reasonPhrase,
         string? body)
     {
-        var reason = string.IsNullOrWhiteSpace(reasonPhrase) ? statusCode.ToString() : reasonPhrase;
-        var message = $"{method} {WithoutQuery(requestUri)} responded {(int)statusCode} {reason}.";
+        string reason = string.IsNullOrWhiteSpace(reasonPhrase) ? statusCode.ToString() : reasonPhrase;
+        string message = $"{method} {WithoutQuery(requestUri)} responded {(int)statusCode} {reason}.";
 
         return string.IsNullOrWhiteSpace(body) ? message : $"{message} Body: {body}";
     }

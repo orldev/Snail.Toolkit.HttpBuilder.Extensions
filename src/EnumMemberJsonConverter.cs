@@ -49,18 +49,18 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
     /// </remarks>
     public EnumMemberJsonConverter()
     {
-        var type = typeof(TEnum);
+        Type type = typeof(TEnum);
 
-        foreach (var value in Enum.GetValues<TEnum>())
+        foreach (TEnum value in Enum.GetValues<TEnum>())
         {
-            var name = value.ToString();
-            var attribute = type
+            string name = value.ToString();
+            EnumMemberAttribute? attribute = type
                 .GetField(name, BindingFlags.Public | BindingFlags.Static)?
                 .GetCustomAttribute<EnumMemberAttribute>(inherit: false);
 
             _stringToEnum.TryAdd(name, value);
 
-            if (TryNumberOf(value, out var number))
+            if (TryNumberOf(value, out long number))
             {
                 _numberToEnum.TryAdd(number, value);
             }
@@ -76,7 +76,7 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
             }
         }
 
-        foreach (var (value, name) in _enumToString)
+        foreach ((TEnum value, string name) in _enumToString)
         {
             _enumToEncoded.Add(value, JsonEncodedText.Encode(name));
         }
@@ -98,20 +98,20 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
     {
         if (reader.TokenType == JsonTokenType.Number)
         {
-            return reader.TryGetInt64(out var number) ? _numberToEnum.GetValueOrDefault(number) : default;
+            return reader.TryGetInt64(out long number) ? _numberToEnum.GetValueOrDefault(number) : default;
         }
 
-        var length = reader.HasValueSequence ? reader.ValueSequence.Length : reader.ValueSpan.Length;
+        long length = reader.HasValueSequence ? reader.ValueSequence.Length : reader.ValueSpan.Length;
 
         if (reader.TokenType == JsonTokenType.String && length <= StackNameLimit)
         {
             Span<char> name = stackalloc char[StackNameLimit];
-            var written = reader.CopyString(name);
+            int written = reader.CopyString(name);
 
-            return written > 0 && _spanToEnum.TryGetValue(name[..written], out var member) ? member : default;
+            return written > 0 && _spanToEnum.TryGetValue(name[..written], out TEnum member) ? member : default;
         }
 
-        var value = reader.GetString();
+        string? value = reader.GetString();
 
         return string.IsNullOrEmpty(value) ? default : _stringToEnum.GetValueOrDefault(value);
     }
@@ -131,7 +131,7 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
             return true;
         }
 
-        var unsigned = Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+        ulong unsigned = Convert.ToUInt64(value, CultureInfo.InvariantCulture);
         number = unchecked((long)unsigned);
 
         return unsigned <= long.MaxValue;
@@ -146,7 +146,7 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
     /// </remarks>
     public override void Write(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options)
     {
-        if (writer.Options.Encoder is null && _enumToEncoded.TryGetValue(value, out var encoded))
+        if (writer.Options.Encoder is null && _enumToEncoded.TryGetValue(value, out JsonEncodedText encoded))
         {
             writer.WriteStringValue(encoded);
 
@@ -154,6 +154,6 @@ public sealed class EnumMemberJsonConverter<[DynamicallyAccessedMembers(Dynamica
         }
 
         writer.WriteStringValue(
-            _enumToString.TryGetValue(value, out var name) ? name : value.ToString());
+            _enumToString.TryGetValue(value, out string? name) ? name : value.ToString());
     }
 }

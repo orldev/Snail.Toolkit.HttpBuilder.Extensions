@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text;
-using Moq;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.Contracts;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.Extensions;
 
@@ -132,15 +131,12 @@ public class StreamedTerminalTests
     [Fact]
     public async Task SendStreamedAsync_ForeignBuilder_AsksForTheWholeResponse()
     {
-        var builder = new Mock<IHttpRequestBuilder>();
-        builder
-            .Setup(foreign => foreign.SendCheckedAsync(It.IsAny<HttpCompletionOption>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"field":"one"}""") });
+        ForeignBuilder builder = new(() => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("""{"field":"one"}""") });
 
-        var streamed = await builder.Object.SendStreamedAsync(TestJson.Default.Response, CancellationToken.None);
+        Response? streamed = await builder.SendStreamedAsync(TestJson.Default.Response, CancellationToken.None);
 
         Assert.Equal("one", streamed?.Field);
-        builder.Verify(foreign => foreign.SendCheckedAsync(HttpCompletionOption.ResponseContentRead, CancellationToken.None));
+        Assert.Equal((HttpCompletionOption.ResponseContentRead, CancellationToken.None), Assert.Single(builder.CheckedSends));
     }
 
     [Fact]

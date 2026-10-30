@@ -1,7 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using Moq;
-using Moq.Protected;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.Contracts;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.Extensions;
 using Snail.Toolkit.HttpBuilder.Extensions.Tests.HttpEndpoints;
@@ -10,6 +8,10 @@ namespace Snail.Toolkit.HttpBuilder.Extensions.Tests;
 
 public class TypedHttpClientBaseTests
 {
+    private const string BaseAddress = "https://www.example.com";
+
+    private const string Path = "myEndpoint";
+
     [Theory]
     [InlineData("GET")]
     [InlineData("PUT")]
@@ -18,55 +20,25 @@ public class TypedHttpClientBaseTests
     [InlineData("PATCH")]
     public async Task HttpMethod_FullHttpRequestMessage_ReturnEqual(string httpMethod)
     {
-        var fakeBaseAddress = "https://www.example.com";
-        var path = "myEndpoint";
+        HttpMethod method = HttpMethod.Parse(httpMethod);
+        Request request = new() { Field = Guid.NewGuid().ToString("N") };
+        Dictionary<string, string> headers = new() { ["Authorization"] = "Basic 12345" };
+        string expectedBody = await JsonContent.Create(request, mediaType: null, options: null).ReadAsStringAsync();
 
-        var requestMethod = HttpMethod.Parse(httpMethod);
-        var requestUrl = $"{fakeBaseAddress}/{path}";
-        var requestVersion = HttpVersion.Version11;
-        var requestVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
-        var request = new Request { Field = Guid.NewGuid().ToString("N") };
-        var requestContent = JsonContent.Create(request, mediaType: null, options: null);
-        var requestHeaders = new Dictionary<string, string>
-        {
-            {"Authorization", "Basic 12345"}
-        };
+        RecordingHandler handler = new(Canned.Json(new Response { Field = Guid.NewGuid().ToString("N") }));
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri(BaseAddress) };
+        SampleExample client = new(httpClient);
 
-        var response = new Response { Field = Guid.NewGuid().ToString("N") };
+        Response? result = await client.Run(method, Path, request, headers, HttpVersion.Version11, HttpVersionPolicy.RequestVersionOrLower);
 
-        var handlerMock = new Mock<HttpMessageHandler>();
-        handlerMock
-            .SetupSendAsync(requestMethod,
-                requestUrl,
-                requestContent,
-                requestHeaders,
-                requestVersion,
-                requestVersionPolicy)
-            .ReturnsHttpResponseAsync(response, HttpStatusCode.OK);
-
-        var httpClient = new HttpClient(handlerMock.Object)
-        {
-            BaseAddress = new Uri(fakeBaseAddress)
-        };
-
-        var client = new SampleExample(httpClient);
-
-        var result = await client.Run(requestMethod, path, request, requestHeaders, requestVersion, requestVersionPolicy);
-
+        HttpRequestMessage sent = handler.Single;
         Assert.NotNull(result);
-        handlerMock.Protected().Verify(
-            "SendAsync",
-            Times.Exactly(1),
-            ItExpr.Is<HttpRequestMessage>(r =>
-                r.Method == requestMethod &&
-                r.RequestUri != null &&
-                r.RequestUri.ToString() == requestUrl &&
-                r.Version == requestVersion &&
-                r.VersionPolicy == requestVersionPolicy &&
-                r.Content.AsString() == requestContent.AsString() &&
-                r.Headers.AsDictionary().AsString() == requestHeaders.AsString()
-            ),
-            ItExpr.IsAny<CancellationToken>());
+        Assert.Equal(method, sent.Method);
+        Assert.Equal($"{BaseAddress}/{Path}", sent.RequestUri?.ToString());
+        Assert.Equal(HttpVersion.Version11, sent.Version);
+        Assert.Equal(HttpVersionPolicy.RequestVersionOrLower, sent.VersionPolicy);
+        Assert.Equal(expectedBody, Assert.Single(handler.Bodies));
+        Assert.Equal(headers, sent.Headers.AsDictionary());
     }
 
     [Theory]
@@ -76,38 +48,17 @@ public class TypedHttpClientBaseTests
     [InlineData("CONNECT")]
     public async Task HttpMethod_PartialHttpRequestMessage_ReturnEqual(string httpMethod)
     {
-        var fakeBaseAddress = "https://www.example.com";
-        var path = "myEndpoint";
+        HttpMethod method = HttpMethod.Parse(httpMethod);
 
-        var requestMethod = HttpMethod.Parse(httpMethod);
-        var requestUrl = $"{fakeBaseAddress}/{path}";
-        var response = "string";
+        RecordingHandler handler = new(Canned.Json("string"));
+        using HttpClient httpClient = new(handler) { BaseAddress = new Uri(BaseAddress) };
+        SampleExample client = new(httpClient);
 
-        var handlerMock = new Mock<HttpMessageHandler>();
-        handlerMock
-            .SetupSendAsync(requestMethod,
-                requestUrl)
-            .ReturnsHttpResponseAsync(response, HttpStatusCode.OK);
+        using HttpResponseMessage result = await client.Run(method, Path);
 
-        var httpClient = new HttpClient(handlerMock.Object)
-        {
-            BaseAddress = new Uri(fakeBaseAddress)
-        };
-
-        var client = new SampleExample(httpClient);
-
-        var result = await client.Run(requestMethod, path);
-
-        Assert.NotNull(result);
-        handlerMock.Protected().Verify(
-            "SendAsync",
-            Times.Exactly(1),
-            ItExpr.Is<HttpRequestMessage>(r =>
-                r.Method == requestMethod &&
-                r.RequestUri != null &&
-                r.RequestUri.ToString() == requestUrl
-            ),
-            ItExpr.IsAny<CancellationToken>());
+        HttpRequestMessage sent = handler.Single;
+        Assert.Equal(HttpStatusCode.OK, result.StatusCode);
+        Assert.Equal(method, sent.Method);
+        Assert.Equal($"{BaseAddress}/{Path}", sent.RequestUri?.ToString());
     }
-
 }

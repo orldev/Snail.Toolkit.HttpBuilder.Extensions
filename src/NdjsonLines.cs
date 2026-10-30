@@ -39,7 +39,7 @@ internal static class NdjsonLines
         {
             if (!await TrySkipOrderMarkAsync(reader, cancellationToken).ConfigureAwait(false))
             {
-                await foreach (var value in ReadByReaderAsync(reader.AsStream(leaveOpen: true), shape, parseText, cancellationToken)
+                await foreach (TValue value in ReadByReaderAsync(reader.AsStream(leaveOpen: true), shape, parseText, cancellationToken)
                                    .ConfigureAwait(false))
                 {
                     yield return value;
@@ -48,16 +48,16 @@ internal static class NdjsonLines
                 yield break;
             }
 
-            var searched = 0L;
+            long searched = 0L;
 
             while (true)
             {
-                var result = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-                var buffer = result.Buffer;
+                ReadResult result = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+                ReadOnlySequence<byte> buffer = result.Buffer;
 
-                while (TryTakeLine(ref buffer, ref searched, result.IsCompleted, out var line))
+                while (TryTakeLine(ref buffer, ref searched, result.IsCompleted, out ReadOnlySequence<byte> line))
                 {
-                    if (TryParse(line, shape, parseUtf8, parseText, out var value))
+                    if (TryParse(line, shape, parseUtf8, parseText, out TValue value))
                     {
                         yield return value;
                     }
@@ -85,8 +85,8 @@ internal static class NdjsonLines
     {
         while (true)
         {
-            var result = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
-            var buffer = result.Buffer;
+            ReadResult result = await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+            ReadOnlySequence<byte> buffer = result.Buffer;
 
             if (buffer.IsEmpty)
             {
@@ -95,7 +95,7 @@ internal static class NdjsonLines
                 return true;
             }
 
-            var first = buffer.FirstSpan[0];
+            byte first = buffer.FirstSpan[0];
 
             if (first is not (0xEF or 0xFE or 0xFF or 0x00))
             {
@@ -106,7 +106,7 @@ internal static class NdjsonLines
 
             if (first == 0xEF && buffer.Length >= 3)
             {
-                var isMark = IsUtf8OrderMark(buffer.Slice(0, 3));
+                bool isMark = IsUtf8OrderMark(buffer.Slice(0, 3));
                 reader.AdvanceTo(isMark ? buffer.GetPosition(3) : buffer.Start);
 
                 return isMark;
@@ -179,8 +179,8 @@ internal static class NdjsonLines
             return TryParse(line.FirstSpan, shape, parseUtf8, parseText, out value);
         }
 
-        var length = checked((int)line.Length);
-        var copy = ArrayPool<byte>.Shared.Rent(length);
+        int length = checked((int)line.Length);
+        byte[] copy = ArrayPool<byte>.Shared.Rent(length);
 
         try
         {
@@ -209,7 +209,7 @@ internal static class NdjsonLines
             return false;
         }
 
-        var parsed = Utf8.IsValid(line) ? parseUtf8(line, shape) : parseText(Encoding.UTF8.GetString(line), shape);
+        TValue? parsed = Utf8.IsValid(line) ? parseUtf8(line, shape) : parseText(Encoding.UTF8.GetString(line), shape);
 
         if (parsed is null)
         {
@@ -241,7 +241,7 @@ internal static class NdjsonLines
     {
         var bytes = new List<byte>();
 
-        for (var code = 0; code <= byte.MaxValue; code++)
+        for (int code = 0; code <= byte.MaxValue; code++)
         {
             if (code > 0x7F || char.IsWhiteSpace((char)code))
             {
@@ -268,7 +268,7 @@ internal static class NdjsonLines
                 continue;
             }
 
-            var value = parseText(line, shape);
+            TValue? value = parseText(line, shape);
 
             if (value is not null)
             {

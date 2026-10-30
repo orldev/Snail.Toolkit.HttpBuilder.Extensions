@@ -125,7 +125,7 @@ public class AuditTests
 
         var started = Stopwatch.GetTimestamp();
         var calls = Enumerable.Range(0, 100).Select(_ => Record.ExceptionAsync(() => new HttpRequestBuilder(client, HttpMethod.Get, "things")
-            .SendStreamedAsync<Response>(CancellationToken.None)));
+            .SendStreamedAsync<Response>(CancellationToken.None)).AsTask());
         var failures = await Task.WhenAll(calls).WaitAsync(TimeSpan.FromSeconds(10));
         var elapsed = Stopwatch.GetElapsedTime(started);
 

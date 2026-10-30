@@ -48,7 +48,7 @@ internal static class SseReader
                 continue;
             }
 
-            ReadField(line, out var name, out var value);
+            ReadField(line, out ReadOnlySpan<char> name, out ReadOnlySpan<char> value);
 
             switch (name)
             {
@@ -82,7 +82,7 @@ internal static class SseReader
     /// </remarks>
     private static void ReadField(string line, out ReadOnlySpan<char> name, out ReadOnlySpan<char> value)
     {
-        var colon = line.IndexOf(':', StringComparison.Ordinal);
+        int colon = line.IndexOf(':', StringComparison.Ordinal);
 
         if (colon < 0)
         {

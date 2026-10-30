@@ -29,7 +29,7 @@ public static partial class HttpRequestTerminals
         this IHttpRequestBuilder builder,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        await foreach (var received in builder
+        await foreach (SseEvent<TValue> received in builder
                            .SendAsSseEventsAsync<TValue>(cancellationToken)
                            .ConfigureAwait(false))
         {
@@ -56,7 +56,7 @@ public static partial class HttpRequestTerminals
         IAsyncEnumerable<SseEvent<TValue>> events,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        await foreach (var received in events.WithCancellation(cancellationToken).ConfigureAwait(false))
+        await foreach (SseEvent<TValue> received in events.WithCancellation(cancellationToken).ConfigureAwait(false))
         {
             yield return received.Data;
         }
@@ -102,23 +102,23 @@ public static partial class HttpRequestTerminals
         Func<string, TShape, TValue?> parse,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        using var response = await builder
+        using HttpResponseMessage response = await builder
             .SendCheckedAsync(HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
 
-        await using var stream = await response.Content
+        await using Stream stream = await response.Content
             .ReadAsStreamAsync(cancellationToken)
             .ConfigureAwait(false);
         using var reader = new StreamReader(stream, Encoding.UTF8);
 
-        await foreach (var received in SseReader.ReadAsync(reader, cancellationToken).ConfigureAwait(false))
+        await foreach (ReceivedSseEvent received in SseReader.ReadAsync(reader, cancellationToken).ConfigureAwait(false))
         {
             if (received.Data == DoneSentinel)
             {
                 yield break;
             }
 
-            var value = parse(received.Data, shape);
+            TValue? value = parse(received.Data, shape);
 
             if (value is not null)
             {
