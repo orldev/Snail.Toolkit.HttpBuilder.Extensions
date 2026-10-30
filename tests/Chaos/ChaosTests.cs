@@ -46,10 +46,11 @@ public class ChaosTests
             using var client = Client(handler, TimeSpan.FromSeconds(10));
             var builder = new HttpRequestBuilder(client, HttpMethod.Post, "thing").AsJson(new Request());
 
-            using var start = new Barrier(2);
-            var first = Task.Run(() => SendAfter(start, builder));
-            var second = Task.Run(() => SendAfter(start, builder));
+            var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var first = Task.Run(() => SendAfter(start.Task, builder));
+            var second = Task.Run(() => SendAfter(start.Task, builder));
 
+            start.SetResult();
             var outcomes = await Task.WhenAll(first, second);
 
             Assert.Single(handler.Requests);
@@ -160,7 +161,7 @@ public class ChaosTests
 
         await release.CancelAsync();
 
-        Assert.Equal(cancel.Token, Assert.IsAssignableFrom<OperationCanceledException>(failure).CancellationToken);
+        Assert.Equal(cancel.Token, Assert.IsType<OperationCanceledException>(failure, exactMatch: false).CancellationToken);
     }
 
     /// <summary>
@@ -295,9 +296,9 @@ public class ChaosTests
         return fastest;
     }
 
-    private static async Task<Exception?> SendAfter(Barrier start, IHttpRequestBuilder builder)
+    private static async Task<Exception?> SendAfter(Task start, IHttpRequestBuilder builder)
     {
-        start.SignalAndWait();
+        await start;
 
         return await Record.ExceptionAsync(async () =>
         {
